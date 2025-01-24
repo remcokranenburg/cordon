@@ -1,0 +1,9 @@
+[package]
+name = "blockade"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+leptos = { version = "0.7.4", features = ["csr"] }
+web-sys = { version = "0.3.77", features = ["CanvasRenderingContext2d", "HtmlCanvasElement"] }
+leptos-use = { version = "0.15.5", features = ["use_raf_fn"] }
