@@ -7,3 +7,4 @@ edition = "2021"
 leptos = { version = "0.7.4", features = ["csr"] }
 web-sys = { version = "0.3.77", features = ["CanvasRenderingContext2d", "HtmlCanvasElement"] }
 leptos-use = { version = "0.15.5", features = ["use_raf_fn"] }
+console_error_panic_hook = "0.1.7"
