@@ -27,7 +27,7 @@ cd app_leptos
 trunk serve --open
 ```
 
-## Remco's Retro Remakes
+## Background
 
 I want to make video games as a hobby, and I like exploring history, so that's
 how I come to the following project: remake old video games to make them easily
@@ -45,16 +45,23 @@ Some sub-goals I want to reach for each game:
 4. Modern controls (keyboard + mouse, gamepad)
 5. Multiplayer: same-computer, LAN and online
 
-Obviously, I don't want to cause trouble for the original creators: this is a
-project of homage to the classics, so there are a few rules:
+## Contributing
 
-1. No copying of code or art assets: it's all self-made
-2. 100% clarity that this is not the original game, but an unrelated remake
-3. The original game must be older than 20 years, so we are not harming profits
+This is a personal hobby project, but I may accept PRs if they are in the
+spirit of the project. Obviously, I don't want to cause trouble for the
+original creators; this is a project of homage to the classics. So, there are a
+few rules:
+
+1. Copyright: no copying of code or art assets: it's all self-made
+2. Trademarks: 100% clarity that this is not the original game, but a remake
+   not endorsed by the original creators
+3. Patents: the original game must be older than 20 years
 
 It *is* allowed to faithfully recreate the game mechanics and the 'atmosphere'
-of the game, because that is the essence of playing these old games. I also
-believe that the rules of a game cannot be owned by anyone.
+of the game, because the rules of a game cannot be owned by anyone.
+
+Any contribution will be under the licence of the AGPL-3.0-or-later, unless
+otherwise specified.
 
 ## License
 
