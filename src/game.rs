@@ -22,6 +22,8 @@ use std::{
     fmt::{self, Debug, Formatter},
 };
 
+use leptos::logging::log;
+
 #[derive(Copy, Clone, Debug)]
 pub enum Direction {
     North,
@@ -76,14 +78,18 @@ pub enum WallType {
 impl WallType {
     pub fn from_action(direction: Direction, action: Direction) -> Result<WallType, &'static str> {
         match (direction, action) {
-            (Direction::North, Direction::North) => Ok(WallType::Horizontal),
-            (Direction::South, Direction::South) => Ok(WallType::Horizontal),
-            (Direction::West, Direction::West) => Ok(WallType::Vertical),
-            (Direction::East, Direction::East) => Ok(WallType::Vertical),
-            (Direction::North, Direction::West) => Ok(WallType::CornerTopLeft),
-            (Direction::North, Direction::East) => Ok(WallType::CornerTopRight),
-            (Direction::South, Direction::West) => Ok(WallType::CornerBottomLeft),
-            (Direction::South, Direction::East) => Ok(WallType::CornerBottomRight),
+            (Direction::North, Direction::North) => Ok(WallType::Vertical),
+            (Direction::South, Direction::South) => Ok(WallType::Vertical),
+            (Direction::West, Direction::West) => Ok(WallType::Horizontal),
+            (Direction::East, Direction::East) => Ok(WallType::Horizontal),
+            (Direction::North, Direction::West) => Ok(WallType::CornerTopRight),
+            (Direction::North, Direction::East) => Ok(WallType::CornerTopLeft),
+            (Direction::South, Direction::West) => Ok(WallType::CornerBottomRight),
+            (Direction::South, Direction::East) => Ok(WallType::CornerBottomLeft),
+            (Direction::East, Direction::North) => Ok(WallType::CornerBottomRight),
+            (Direction::East, Direction::South) => Ok(WallType::CornerTopRight),
+            (Direction::West, Direction::North) => Ok(WallType::CornerBottomLeft),
+            (Direction::West, Direction::South) => Ok(WallType::CornerTopLeft),
             _ => return Err("Invalid wall placement"),
         }
     }
@@ -130,7 +136,7 @@ impl Grid {
         self.data[height - 1][width - 1] =
             Cell::Wall(WallType::CornerBottomRight, Default::default());
 
-        for i in 1..width {
+        for i in 1..(width - 1) {
             self.data[0][i] = Cell::Wall(WallType::Horizontal, Default::default());
             self.data[height - 1][i] = Cell::Wall(WallType::Horizontal, Default::default());
         }
@@ -162,7 +168,7 @@ impl Debug for Grid {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Phase {
     Step,
     Score,
@@ -184,11 +190,11 @@ impl GameState {
     }
 
     pub fn next_round(&mut self) {
-        self.rounds -= 1;
         self.player_turn = 0;
         self.grid.reset();
         self.reset_players();
         self.place_players();
+        self.phase = Phase::Step;
     }
 
     pub fn current_player(&self) -> &Player {
@@ -208,9 +214,11 @@ impl GameState {
             if i == 0 {
                 player.position = Position { x: 10, y: 10 };
                 player.direction = Direction::South;
+                player.action = Direction::South;
             } else if i == 1 {
                 player.position = Position { x: 20, y: 20 };
                 player.direction = Direction::North;
+                player.action = Direction::North;
             } else {
                 // TODO: position >2 players
             }
@@ -229,15 +237,9 @@ impl GameState {
     pub fn step(&mut self) -> Phase {
         let grid_width = self.grid.data[0].len();
         let grid_height = self.grid.data.len();
-
         let old_direction = self.current_player().direction;
 
-        match self.current_player().action {
-            Direction::North => self.current_player_mut().direction = Direction::North,
-            Direction::South => self.current_player_mut().direction = Direction::South,
-            Direction::West => self.current_player_mut().direction = Direction::West,
-            Direction::East => self.current_player_mut().direction = Direction::East,
-        };
+        self.current_player_mut().direction = self.current_player().action;
 
         // find new position
         let player = self.current_player();
@@ -270,7 +272,7 @@ impl GameState {
 
                 for p in self.players.iter() {
                     // suggest next step
-                    if p.score >= 6 {
+                    if p.score >= self.rounds {
                         return Phase::GameOver;
                     }
                 }
@@ -280,6 +282,7 @@ impl GameState {
             Cell::Empty => {
                 // place wall
                 let player = self.current_player_mut();
+                log!("old direction: {:?}, action: {:?}", old_direction, player.action);
                 let wall_type = WallType::from_action(old_direction, player.action).unwrap();
                 self.grid.data[y][x] = Cell::Wall(wall_type, player.color);
 
