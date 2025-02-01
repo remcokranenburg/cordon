@@ -25,10 +25,7 @@ use leptos::{
     logging::log,
     prelude::*,
 };
-use leptos_use::{
-    use_document, use_event_listener, use_interval_fn, use_timeout_fn, use_window,
-    UseTimeoutFnReturn,
-};
+use leptos_use::{use_document, use_event_listener, use_interval_fn, use_window};
 use std::f64;
 use web_sys::{wasm_bindgen::JsCast, CanvasRenderingContext2d, HtmlCanvasElement, KeyboardEvent};
 
@@ -59,32 +56,36 @@ fn App() -> impl IntoView {
     let (game_state, set_game_state) = signal::<game::GameState>(Default::default());
     let game_phase = Memo::new(move |_| game_state.get().phase);
 
-    Effect::new(move || {
-        match game_phase.get() {
-            game::Phase::Step => {
-                use_interval_fn(
-                    move || {
-                        // log!("Step");
-                        let mut game_state = set_game_state.write();
-                        let next_phase = game_state.step();
-                        game_state.phase = next_phase;
-                    },
-                    100,
-                );
-            }
-            game::Phase::Score => {
-                let UseTimeoutFnReturn { start, .. } = use_timeout_fn(
-                    move |_: ()| {
-                        set_game_state.update(|game_state| game_state.next_round());
-                    },
-                    2000.0,
-                );
+    Effect::new(move || match game_phase.get() {
+        game::Phase::Step => {
+            use_interval_fn(
+                move || {
+                    let mut game_state = set_game_state.write();
+                    let next_phase = game_state.step();
+                    game_state.phase = next_phase;
+                },
+                100,
+            );
+        }
+        game::Phase::Score => {
+            let num_explosion_frames = 20;
+            let (explosion_frame, set_explosion_frame) = signal(0);
 
-                start(());
-            }
-            game::Phase::GameOver => {
-                log!("Game Over");
-            }
+            use_interval_fn(
+                move || {
+                    if explosion_frame.get() >= num_explosion_frames {
+                        set_game_state.update(|game_state| game_state.next_round());
+                    } else {
+                        let mut game_state = set_game_state.write();
+                        game_state.toggle_explosion();
+                        set_explosion_frame.update(|x| *x += 1);
+                    }
+                },
+                100,
+            );
+        }
+        game::Phase::GameOver => {
+            log!("Game Over");
         }
     });
 
@@ -259,6 +260,12 @@ fn draw_board(
                     }
 
                     c.stroke();
+                }
+                game::Cell::Explosion(explosion) => {
+                    if *explosion {
+                        c.set_fill_style_str("rgb(255, 0, 0)");
+                        c.fill_rect(x, y_high, cell_width, cell_height);
+                    }
                 }
                 game::Cell::Empty => {}
             }

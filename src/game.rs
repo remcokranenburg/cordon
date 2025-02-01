@@ -97,6 +97,7 @@ impl WallType {
 pub enum Cell {
     Wall(WallType, Color),
     Player(usize),
+    Explosion(bool),
     Empty,
 }
 
@@ -157,6 +158,7 @@ impl Debug for Grid {
                     Cell::Wall(..) => write!(f, "W")?,
                     Cell::Player(..) => write!(f, "P")?,
                     Cell::Empty => write!(f, " ")?,
+                    Cell::Explosion(x) => write!(f, "{}", if *x { "X" } else { " " })?,
                 }
             }
             writeln!(f)?;
@@ -180,6 +182,7 @@ pub struct GameState {
     pub player_turn: usize,
     pub players: Vec<Player>,
     pub rounds: u32,
+    pub explosion: Option<Position>,
 }
 
 impl GameState {
@@ -257,9 +260,18 @@ impl GameState {
         assert!(nx < grid_width);
         assert!(ny < grid_height);
 
+        // place wall
+        let player = self.current_player_mut();
+        let wall_type = WallType::from_action(old_direction, player.action).unwrap();
+        self.grid.data[y][x] = Cell::Wall(wall_type, player.color);
+
         // check the next cell for result of action
         match self.grid.data[ny][nx] {
             Cell::Wall(..) | Cell::Player(..) => {
+                // set explosion
+                self.explosion = Some(Position { x: nx, y: ny });
+                self.grid.data[ny][nx] = Cell::Explosion(true);
+
                 // other players score one point
                 for (i, p) in self.players.iter_mut().enumerate() {
                     if i != self.player_turn {
@@ -278,11 +290,6 @@ impl GameState {
                 Phase::Score
             }
             Cell::Empty => {
-                // place wall
-                let player = self.current_player_mut();
-                let wall_type = WallType::from_action(old_direction, player.action).unwrap();
-                self.grid.data[y][x] = Cell::Wall(wall_type, player.color);
-
                 // move forward
                 let player = self.current_player_mut();
                 player.position.x = nx;
@@ -293,6 +300,18 @@ impl GameState {
                 // suggest next step
                 Phase::Step
             }
+            Cell::Explosion(..) => panic!("Cannot intersect with an explosion!"),
+        }
+    }
+
+    pub fn toggle_explosion(&mut self) {
+        if let Some(Position { x, y }) = self.explosion {
+            match self.grid.data[y][x] {
+                Cell::Explosion(explosion) => self.grid.data[y][x] = Cell::Explosion(!explosion),
+                _ => panic!("Explosion expected"),
+            }
+        } else {
+            panic!("No explosion to toggle");
         }
     }
 }
@@ -329,6 +348,7 @@ impl Default for GameState {
                     blockades: VecDeque::new(),
                 },
             ],
+            explosion: None,
             rounds: 6,
         };
 
