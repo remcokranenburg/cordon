@@ -22,8 +22,6 @@ use std::{
     fmt::{self, Debug, Formatter},
 };
 
-use leptos::logging::log;
-
 #[derive(Copy, Clone, Debug)]
 pub enum Direction {
     North,
@@ -282,7 +280,6 @@ impl GameState {
             Cell::Empty => {
                 // place wall
                 let player = self.current_player_mut();
-                log!("old direction: {:?}, action: {:?}", old_direction, player.action);
                 let wall_type = WallType::from_action(old_direction, player.action).unwrap();
                 self.grid.data[y][x] = Cell::Wall(wall_type, player.color);
 

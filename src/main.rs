@@ -26,11 +26,11 @@ use leptos::{
     prelude::*,
 };
 use leptos_use::{
-    use_document, use_event_listener, use_interval_fn, use_timeout_fn, use_window, utils::Pausable,
+    use_document, use_event_listener, use_interval_fn, use_timeout_fn, use_window,
     UseTimeoutFnReturn,
 };
 use std::f64;
-use web_sys::{wasm_bindgen::JsCast, CanvasRenderingContext2d, HtmlCanvasElement};
+use web_sys::{wasm_bindgen::JsCast, CanvasRenderingContext2d, HtmlCanvasElement, KeyboardEvent};
 
 fn toggle_fullscreen() {
     let document = use_document();
@@ -46,14 +46,49 @@ fn toggle_fullscreen() {
     }
 }
 
+fn handle_action(e: &KeyboardEvent, player: &mut game::Player, action: game::Direction) {
+    player.action = action;
+    e.stop_propagation();
+    e.prevent_default();
+}
+
 #[component]
 fn App() -> impl IntoView {
     let (debug_mode, set_debug_mode) = signal(false);
     let (is_fullscreen, set_is_fullscreen) = signal(use_document().fullscreen().unwrap());
     let (game_state, set_game_state) = signal::<game::GameState>(Default::default());
-    let game_phase = move || game_state.get().phase;
+    let game_phase = Memo::new(move |_| game_state.get().phase);
 
-    let _cleanup = use_event_listener(use_document().body(), keydown, move |e| {
+    Effect::new(move || {
+        match game_phase.get() {
+            game::Phase::Step => {
+                use_interval_fn(
+                    move || {
+                        // log!("Step");
+                        let mut game_state = set_game_state.write();
+                        let next_phase = game_state.step();
+                        game_state.phase = next_phase;
+                    },
+                    100,
+                );
+            }
+            game::Phase::Score => {
+                let UseTimeoutFnReturn { start, .. } = use_timeout_fn(
+                    move |_: ()| {
+                        set_game_state.update(|game_state| game_state.next_round());
+                    },
+                    2000.0,
+                );
+
+                start(());
+            }
+            game::Phase::GameOver => {
+                log!("Game Over");
+            }
+        }
+    });
+
+    let _cleanup = use_event_listener(use_window(), keydown, move |e| {
         // on Ctrl+D toggle debug mode
         if e.ctrl_key() && e.key() == "d" {
             set_debug_mode.set(!debug_mode.get());
@@ -62,55 +97,27 @@ fn App() -> impl IntoView {
         }
 
         // Player keyboard input
-        if game_phase() == game::Phase::Step {
-            set_game_state.update(|game_state| {
-                match e.key().as_str() {
-                    "w" => game_state.players[0].action = game::Direction::North,
-                    "a" => game_state.players[0].action = game::Direction::West,
-                    "s" => game_state.players[0].action = game::Direction::South,
-                    "d" => game_state.players[0].action = game::Direction::East,
-                    "ArrowUp" => game_state.players[1].action = game::Direction::North,
-                    "ArrowLeft" => game_state.players[1].action = game::Direction::West,
-                    "ArrowDown" => game_state.players[1].action = game::Direction::South,
-                    "ArrowRight" => game_state.players[1].action = game::Direction::East,
-                    _ => (),
+        if game_phase.get() == game::Phase::Step {
+            set_game_state.update(|game_state| match e.key().as_str() {
+                "w" => handle_action(&e, &mut game_state.players[0], game::Direction::North),
+                "a" => handle_action(&e, &mut game_state.players[0], game::Direction::West),
+                "s" => handle_action(&e, &mut game_state.players[0], game::Direction::South),
+                "d" => handle_action(&e, &mut game_state.players[0], game::Direction::East),
+                "ArrowUp" => handle_action(&e, &mut game_state.players[1], game::Direction::North),
+                "ArrowLeft" => handle_action(&e, &mut game_state.players[1], game::Direction::West),
+                "ArrowDown" => {
+                    handle_action(&e, &mut game_state.players[1], game::Direction::South)
                 }
-                e.prevent_default();
-                log!("Player 0: {:?}", game_state.players[0].action);
-                log!("Player 1: {:?}", game_state.players[1].action);
+                "ArrowRight" => {
+                    handle_action(&e, &mut game_state.players[1], game::Direction::East)
+                }
+                _ => (),
             });
         }
     });
 
     let _cleanup = use_event_listener(use_document(), fullscreenchange, move |_| {
         set_is_fullscreen.set(use_document().fullscreen().unwrap());
-    });
-
-    Effect::new(move || match game_phase() {
-        game::Phase::Step => {
-            use_interval_fn(
-                move || {
-                    log!("Step");
-                    let mut game_state = set_game_state.write();
-                    let next_phase = game_state.step();
-                    game_state.phase = next_phase;
-                },
-                200,
-            );
-        }
-        game::Phase::Score => {
-            let UseTimeoutFnReturn { start, .. } = use_timeout_fn(
-                move |_: ()| {
-                    set_game_state.update(|game_state| game_state.next_round());
-                },
-                2000.0,
-            );
-
-            start(());
-        }
-        game::Phase::GameOver => {
-            log!("Game Over");
-        }
     });
 
     view! {
