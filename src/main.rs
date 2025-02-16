@@ -17,7 +17,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+mod common;
 mod game;
+mod layout;
+mod render;
 
 use leptos::{
     ev::{fullscreenchange, keydown},
@@ -26,8 +29,7 @@ use leptos::{
     prelude::*,
 };
 use leptos_use::{use_document, use_event_listener, use_interval_fn, use_window};
-use std::f64;
-use web_sys::{wasm_bindgen::JsCast, CanvasRenderingContext2d, HtmlCanvasElement, KeyboardEvent};
+use web_sys::{wasm_bindgen::JsCast, CanvasRenderingContext2d, KeyboardEvent};
 
 fn toggle_fullscreen() {
     let document = use_document();
@@ -43,7 +45,7 @@ fn toggle_fullscreen() {
     }
 }
 
-fn handle_action(e: &KeyboardEvent, player: &mut game::Player, action: game::Direction) {
+fn handle_action(e: &KeyboardEvent, player: &mut game::Player, action: common::Direction) {
     player.action = action;
     e.stop_propagation();
     e.prevent_default();
@@ -100,17 +102,21 @@ fn App() -> impl IntoView {
         // Player keyboard input
         if game_phase.get() == game::Phase::Step {
             set_game_state.update(|game_state| match e.key().as_str() {
-                "w" => handle_action(&e, &mut game_state.players[0], game::Direction::North),
-                "a" => handle_action(&e, &mut game_state.players[0], game::Direction::West),
-                "s" => handle_action(&e, &mut game_state.players[0], game::Direction::South),
-                "d" => handle_action(&e, &mut game_state.players[0], game::Direction::East),
-                "ArrowUp" => handle_action(&e, &mut game_state.players[1], game::Direction::North),
-                "ArrowLeft" => handle_action(&e, &mut game_state.players[1], game::Direction::West),
+                "w" => handle_action(&e, &mut game_state.players[0], common::Direction::North),
+                "a" => handle_action(&e, &mut game_state.players[0], common::Direction::West),
+                "s" => handle_action(&e, &mut game_state.players[0], common::Direction::South),
+                "d" => handle_action(&e, &mut game_state.players[0], common::Direction::East),
+                "ArrowUp" => {
+                    handle_action(&e, &mut game_state.players[1], common::Direction::North)
+                }
+                "ArrowLeft" => {
+                    handle_action(&e, &mut game_state.players[1], common::Direction::West)
+                }
                 "ArrowDown" => {
-                    handle_action(&e, &mut game_state.players[1], game::Direction::South)
+                    handle_action(&e, &mut game_state.players[1], common::Direction::South)
                 }
                 "ArrowRight" => {
-                    handle_action(&e, &mut game_state.players[1], game::Direction::East)
+                    handle_action(&e, &mut game_state.players[1], common::Direction::East)
                 }
                 _ => (),
             });
@@ -134,145 +140,6 @@ fn App() -> impl IntoView {
     }
 }
 
-fn draw_wall(
-    wall_type: &game::WallType,
-    color: &game::Color,
-    c: &CanvasRenderingContext2d,
-    x: f64,
-    y: f64,
-    width: f64,
-    height: f64,
-) {
-    let r = color.r * 255.0;
-    let g = color.g * 255.0;
-    let b = color.b * 255.0;
-
-    c.set_fill_style_str(&format!("rgb({r}, {g}, {b})"));
-    c.fill_rect(x, y, width, height);
-
-    c.set_stroke_style_str("rgb(0, 0, 0)");
-    c.set_line_width(4.0);
-
-    let half_width = width * 0.5;
-    let half_height = height * 0.5;
-
-    match wall_type {
-        game::WallType::Horizontal => {
-            c.begin_path();
-            c.move_to(x, y + half_height);
-            c.line_to(x + width, y + half_height);
-            c.stroke();
-        }
-        game::WallType::Vertical => {
-            c.begin_path();
-            c.move_to(x + half_width, y);
-            c.line_to(x + half_width, y + height);
-            c.stroke();
-        }
-        game::WallType::CornerTopLeft => {
-            c.begin_path();
-            c.move_to(x + half_width, y + height);
-            c.line_to(x + half_width, y + half_height);
-            c.line_to(x + width, y + half_height);
-            c.stroke();
-        }
-        game::WallType::CornerTopRight => {
-            c.begin_path();
-            c.move_to(x, y + half_height);
-            c.line_to(x + half_width, y + half_height);
-            c.line_to(x + half_width, y + height);
-            c.stroke();
-        }
-        game::WallType::CornerBottomLeft => {
-            c.begin_path();
-            c.move_to(x + half_width, y);
-            c.line_to(x + half_width, y + half_height);
-            c.line_to(x + width, y + half_height);
-            c.stroke();
-        }
-        game::WallType::CornerBottomRight => {
-            c.begin_path();
-            c.move_to(x, y + half_height);
-            c.line_to(x + half_width, y + half_height);
-            c.line_to(x + half_width, y);
-            c.stroke();
-        }
-    }
-}
-
-fn draw_board(
-    c: &CanvasRenderingContext2d,
-    game_state: &game::GameState,
-    canvas: &HtmlCanvasElement,
-) {
-    let cell_width = canvas.width() as f64 / game_state.grid.data[0].len() as f64;
-    let cell_height = canvas.height() as f64 / game_state.grid.data.len() as f64;
-
-    c.set_fill_style_str("rgb(0, 0, 0)");
-    c.fill_rect(0.0, 0.0, canvas.width() as f64, canvas.height() as f64);
-
-    for (row_i, row) in game_state.grid.data.iter().enumerate() {
-        for (cell_i, cell) in row.iter().enumerate() {
-            let x = cell_i as f64 * cell_width;
-            let x_mid = x + cell_width * 0.5;
-            let x_high = x + cell_width;
-            let y = row_i as f64 * cell_height + cell_height;
-            let y_mid = y - cell_height * 0.5;
-            let y_high = y - cell_height;
-
-            match cell {
-                game::Cell::Wall(wall_type, color) => {
-                    draw_wall(wall_type, color, c, x, y_high, cell_width, cell_height)
-                }
-                game::Cell::Player(player_id) => {
-                    let player = &game_state.players[*player_id];
-                    let color = player.color;
-                    let r = color.r * 255.0;
-                    let g = color.g * 255.0;
-                    let b = color.b * 255.0;
-                    let direction = player.direction;
-
-                    c.set_line_width(4.0);
-                    c.set_stroke_style_str(&format!("rgb({r}, {g}, {b})"));
-                    c.begin_path();
-
-                    match direction {
-                        game::Direction::North => {
-                            c.move_to(x + 2.0, y);
-                            c.line_to(x_mid, y_high + 2.0);
-                            c.line_to(x_high - 2.0, y);
-                        }
-                        game::Direction::South => {
-                            c.move_to(x + 2.0, y_high);
-                            c.line_to(x_mid, y - 2.0);
-                            c.line_to(x_high - 2.0, y_high);
-                        }
-                        game::Direction::West => {
-                            c.move_to(x_high, y + 2.0);
-                            c.line_to(x, y_mid);
-                            c.line_to(x_high, y_high - 2.0);
-                        }
-                        game::Direction::East => {
-                            c.move_to(x, y + 2.0);
-                            c.line_to(x_high, y_mid);
-                            c.line_to(x, y_high - 2.0);
-                        }
-                    }
-
-                    c.stroke();
-                }
-                game::Cell::Explosion(explosion) => {
-                    if *explosion {
-                        c.set_fill_style_str("rgb(255, 0, 0)");
-                        c.fill_rect(x, y_high, cell_width, cell_height);
-                    }
-                }
-                game::Cell::Empty => {}
-            }
-        }
-    }
-}
-
 #[component]
 fn Board(game_state: ReadSignal<game::GameState>, debug_mode: ReadSignal<bool>) -> impl IntoView {
     let canvas_ref = NodeRef::<Canvas>::new();
@@ -287,7 +154,7 @@ fn Board(game_state: ReadSignal<game::GameState>, debug_mode: ReadSignal<bool>) 
                 .dyn_into::<CanvasRenderingContext2d>()
                 .unwrap();
 
-            draw_board(&c, &game_state, &canvas);
+            render::draw_board(&c, &game_state, &canvas);
         }
     });
 

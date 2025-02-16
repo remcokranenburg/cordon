@@ -17,41 +17,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+use crate::layout::{Cell, Grid, WallType};
+use crate::common::{Color, Direction, Position};
 use std::{
     collections::VecDeque,
-    fmt::{self, Debug, Formatter},
+    fmt::Debug,
 };
-
-#[derive(Copy, Clone, Debug)]
-pub enum Direction {
-    North,
-    South,
-    West,
-    East,
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct Color {
-    pub r: f64,
-    pub g: f64,
-    pub b: f64,
-}
-
-impl Default for Color {
-    fn default() -> Self {
-        Color {
-            r: 0.0,
-            g: 0.5,
-            b: 0.0,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct Position {
-    pub x: usize,
-    pub y: usize,
-}
 
 #[derive(Clone, Debug)]
 pub struct Player {
@@ -60,112 +31,7 @@ pub struct Player {
     pub position: Position,
     pub direction: Direction,
     pub action: Direction,
-    pub blockades: VecDeque<(Position, WallType)>,
-}
-
-#[derive(Copy, Clone, Debug)]
-pub enum WallType {
-    Horizontal,
-    Vertical,
-    CornerTopLeft,
-    CornerTopRight,
-    CornerBottomLeft,
-    CornerBottomRight,
-}
-
-impl WallType {
-    pub fn from_action(direction: Direction, action: Direction) -> Result<WallType, &'static str> {
-        match (direction, action) {
-            (Direction::North, Direction::North) => Ok(WallType::Vertical),
-            (Direction::South, Direction::South) => Ok(WallType::Vertical),
-            (Direction::West, Direction::West) => Ok(WallType::Horizontal),
-            (Direction::East, Direction::East) => Ok(WallType::Horizontal),
-            (Direction::North, Direction::West) => Ok(WallType::CornerTopRight),
-            (Direction::North, Direction::East) => Ok(WallType::CornerTopLeft),
-            (Direction::South, Direction::West) => Ok(WallType::CornerBottomRight),
-            (Direction::South, Direction::East) => Ok(WallType::CornerBottomLeft),
-            (Direction::East, Direction::North) => Ok(WallType::CornerBottomRight),
-            (Direction::East, Direction::South) => Ok(WallType::CornerTopRight),
-            (Direction::West, Direction::North) => Ok(WallType::CornerBottomLeft),
-            (Direction::West, Direction::South) => Ok(WallType::CornerTopLeft),
-            _ => return Err("Invalid wall placement"),
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub enum Cell {
-    Wall(WallType, Color),
-    Player(usize),
-    Explosion(bool),
-    Empty,
-}
-
-#[derive(Clone)]
-pub struct Grid {
-    pub data: Vec<Vec<Cell>>,
-}
-
-impl Grid {
-    pub fn new(width: usize, height: usize) -> Self {
-        let mut grid = Grid {
-            data: Grid::init_data(width, height),
-        };
-        grid.place_walls();
-        grid
-    }
-
-    pub fn reset(&mut self) {
-        self.data = Grid::init_data(self.data[0].len(), self.data.len());
-        self.place_walls();
-    }
-
-    fn init_data(width: usize, height: usize) -> Vec<Vec<Cell>> {
-        let data = vec![vec![Cell::Empty; width]; height];
-        data
-    }
-
-    fn place_walls(&mut self) {
-        let width = self.data[0].len();
-        let height = self.data.len();
-
-        self.data[0][0] = Cell::Wall(WallType::CornerTopLeft, Default::default());
-        self.data[0][width - 1] = Cell::Wall(WallType::CornerTopRight, Default::default());
-        self.data[height - 1][0] = Cell::Wall(WallType::CornerBottomLeft, Default::default());
-        self.data[height - 1][width - 1] =
-            Cell::Wall(WallType::CornerBottomRight, Default::default());
-
-        for i in 1..(width - 1) {
-            self.data[0][i] = Cell::Wall(WallType::Horizontal, Default::default());
-            self.data[height - 1][i] = Cell::Wall(WallType::Horizontal, Default::default());
-        }
-
-        for i in 1..height - 1 {
-            self.data[i][0] = Cell::Wall(WallType::Vertical, Default::default());
-            self.data[i][width - 1] = Cell::Wall(WallType::Vertical, Default::default());
-        }
-    }
-}
-
-impl Debug for Grid {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{{")?;
-        writeln!(f)?;
-        for row in self.data.iter() {
-            write!(f, "  ")?;
-            for cell in row.iter() {
-                match cell {
-                    Cell::Wall(..) => write!(f, "W")?,
-                    Cell::Player(..) => write!(f, "P")?,
-                    Cell::Empty => write!(f, " ")?,
-                    Cell::Explosion(x) => write!(f, "{}", if *x { "X" } else { " " })?,
-                }
-            }
-            writeln!(f)?;
-        }
-        write!(f, "}}")?;
-        Ok(())
-    }
+    pub segments: VecDeque<Position>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -333,7 +199,7 @@ impl Default for GameState {
                     position: Position { x: 10, y: 10 },
                     direction: Direction::South,
                     action: Direction::South,
-                    blockades: VecDeque::new(),
+                    segments: VecDeque::new(),
                 },
                 Player {
                     color: Color {
@@ -345,7 +211,7 @@ impl Default for GameState {
                     position: Position { x: 20, y: 20 },
                     direction: Direction::North,
                     action: Direction::North,
-                    blockades: VecDeque::new(),
+                    segments: VecDeque::new(),
                 },
             ],
             explosion: None,
