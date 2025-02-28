@@ -1,4 +1,4 @@
-// Blockade 1976, a Retro Remake
+// Cordon
 //
 // Copyright 2025 Remco Kranenburg <remco@burgsoft.nl>
 //
@@ -126,7 +126,7 @@ fn App() -> impl IntoView {
     view! {
         <div>
             <div class="window-controls">
-                <h1>"Blockade 1976, a retro remake"</h1>
+                <h1>"Cordon"</h1>
                 <button on:click={move |_| toggle_fullscreen()}>
                     {move || if is_fullscreen.get() { "Exit Fullscreen" } else { "Fullscreen" }}
                 </button>

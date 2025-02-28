@@ -1,4 +1,7 @@
-# Blockade 1976, a Retro Remake
+# Cordon
+
+A retro remake of the 1976 game Blockade and its sequels. Not endorsed by the
+original creators!
 
 Originally created by Gremlin, Blockade was an arcade game and the origin of
 two genres: light cycle games (later popularized by Tron) and snake-like games

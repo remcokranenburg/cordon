@@ -1,4 +1,4 @@
-// Blockade 1976, a Retro Remake
+// Cordon
 //
 // Copyright 2025 Remco Kranenburg <remco@burgsoft.nl>
 //
@@ -82,20 +82,18 @@ impl GameState {
                     self.set_next_player();
                     self.phase = Phase::Step;
                 }
-            },
+            }
             Phase::Score => {
                 // while scoring, the next tick resets the players, allowing for
                 // an animation in between
                 self.reset_players();
                 self.phase = Phase::Step;
-            },
+            }
             Phase::GameOver => {
                 // while the game is over, ticks do nothing
                 return;
             }
         }
-
-        
     }
 
     /// Advance the game one step, by moving the active player in its direction.
