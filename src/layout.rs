@@ -17,8 +17,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use crate::common::{Color, Direction};
-use std::fmt::{self, Debug, Formatter};
+use leptos::logging::log;
+
+use crate::common::{Color, Direction, Position};
+use crate::game::{GameState, Player};
+use std::{
+    collections::VecDeque,
+    fmt::{self, Debug, Formatter},
+};
 
 #[derive(Copy, Clone, Debug)]
 pub enum WallType {
@@ -31,8 +37,19 @@ pub enum WallType {
 }
 
 impl WallType {
-    pub fn from_action(direction: Direction, action: Direction) -> Result<WallType, &'static str> {
-        match (direction, action) {
+    /// Calculate wall type from current and previous directions.
+    pub fn calculate_from_directions(
+        i: usize,
+        segments: &VecDeque<(Position, Direction)>,
+    ) -> Result<WallType, &'static str> {
+        if i == 0 {
+            return Ok(WallType::Vertical);
+        }
+
+        let from = segments[i - 1].1;
+        let to = segments[i].1;
+
+        match (from, to) {
             (Direction::North, Direction::North) => Ok(WallType::Vertical),
             (Direction::South, Direction::South) => Ok(WallType::Vertical),
             (Direction::West, Direction::West) => Ok(WallType::Horizontal),
@@ -45,7 +62,50 @@ impl WallType {
             (Direction::East, Direction::South) => Ok(WallType::CornerTopRight),
             (Direction::West, Direction::North) => Ok(WallType::CornerBottomLeft),
             (Direction::West, Direction::South) => Ok(WallType::CornerTopLeft),
-            _ => return Err("Invalid wall placement"),
+            (Direction::North, Direction::South)
+            | (Direction::South, Direction::North)
+            | (Direction::West, Direction::East)
+            | (Direction::East, Direction::West) => Err("Collision"),
+        }
+    }
+
+    // Calculate wall type from obstacles: the wall type is determined by the preceding and
+    // following obstacles. For example, if the preceding obstacle is south of the current, and the
+    // following obstacle is west of the current, the wall type is CornerTopRight.
+    //
+    // Note: the preceding obstacle of the first is the last, and the following obstacle of the
+    // last is the first.
+    pub fn calculate_from_positions(
+        i: usize,
+        obstacles: &Vec<Position>,
+    ) -> Result<WallType, &'static str> {
+        let current = obstacles[i];
+        let preceding = if i == 0 {
+            obstacles[obstacles.len() - 1]
+        } else {
+            obstacles[i - 1]
+        };
+        let following = if i == obstacles.len() - 1 {
+            obstacles[0]
+        } else {
+            obstacles[i + 1]
+        };
+
+        if preceding.x == current.x && following.x == current.x {
+            Ok(WallType::Vertical)
+        } else if preceding.y == current.y && following.y == current.y {
+            Ok(WallType::Horizontal)
+        } else if preceding.y > current.y && following.x < current.x {
+            Ok(WallType::CornerTopRight)
+        } else if preceding.x > current.x && following.y > current.y {
+            Ok(WallType::CornerTopLeft)
+        } else if preceding.x < current.x && following.y < current.y {
+            Ok(WallType::CornerBottomRight)
+        } else if preceding.y < current.y && following.x > current.x {
+            Ok(WallType::CornerBottomLeft)
+        } else {
+            log!("{:?} {:?} {:?}", preceding, current, following);
+            Err("Invalid wall placement")
         }
     }
 }
@@ -53,54 +113,89 @@ impl WallType {
 #[derive(Copy, Clone, Debug)]
 pub enum Cell {
     Wall(WallType, Color),
-    Player(usize),
-    Explosion(bool),
+    Player(Direction, Color),
+    Collision,
+    Letter(char, Color),
     Empty,
+}
+
+impl Cell {
+    pub fn head_from_player(player: &Player) -> Self {
+        let (_, direction) = player.segments.back().unwrap();
+        Cell::Player(*direction, player.color)
+    }
 }
 
 #[derive(Clone)]
 pub struct Grid {
-    pub data: Vec<Vec<Cell>>,
+    data: Vec<Vec<Cell>>,
 }
 
 impl Grid {
-    pub fn new(width: usize, height: usize) -> Self {
+    pub fn new(width: usize, height: usize, game_state: &GameState) -> Self {
         let mut grid = Grid {
             data: Grid::init_data(width, height),
         };
-        grid.place_walls();
+        grid.place_objects(game_state);
         grid
     }
 
-    pub fn reset(&mut self) {
+    pub fn reset(&mut self, game_state: &GameState) {
         self.data = Grid::init_data(self.data[0].len(), self.data.len());
-        self.place_walls();
+        self.place_objects(game_state);
     }
 
-    fn place_walls(&mut self) {
-        let width = self.data[0].len();
-        let height = self.data.len();
+    pub fn get_data(&self) -> &Vec<Vec<Cell>> {
+        &self.data
+    }
 
-        self.data[0][0] = Cell::Wall(WallType::CornerTopLeft, Default::default());
-        self.data[0][width - 1] = Cell::Wall(WallType::CornerTopRight, Default::default());
-        self.data[height - 1][0] = Cell::Wall(WallType::CornerBottomLeft, Default::default());
-        self.data[height - 1][width - 1] =
-            Cell::Wall(WallType::CornerBottomRight, Default::default());
-
-        for i in 1..(width - 1) {
-            self.data[0][i] = Cell::Wall(WallType::Horizontal, Default::default());
-            self.data[height - 1][i] = Cell::Wall(WallType::Horizontal, Default::default());
-        }
-
-        for i in 1..height - 1 {
-            self.data[i][0] = Cell::Wall(WallType::Vertical, Default::default());
-            self.data[i][width - 1] = Cell::Wall(WallType::Vertical, Default::default());
-        }
+    fn place_objects(&mut self, game_state: &GameState) {
+        self.place_obstacles(game_state);
+        self.place_players(game_state);
+        self.place_collision(game_state);
     }
 
     fn init_data(width: usize, height: usize) -> Vec<Vec<Cell>> {
         let data = vec![vec![Cell::Empty; width]; height];
         data
+    }
+
+    fn place_obstacles(&mut self, game_state: &GameState) {
+        for (i, obstacle) in game_state.obstacles.iter().enumerate() {
+            self.data[obstacle.y][obstacle.x] = Cell::Wall(
+                WallType::calculate_from_positions(i, &game_state.obstacles).unwrap(),
+                Default::default(),
+            );
+        }
+    }
+
+    fn place_players(&mut self, game_state: &GameState) {
+        for player in game_state.players.iter() {
+            for (i, (position, _)) in player.segments.iter().enumerate() {
+                if i == player.segments.len() - 1 {
+                    self.data[position.y][position.x] = Cell::head_from_player(player);
+                } else {
+                    match WallType::calculate_from_directions(i, &player.segments) {
+                        Ok(wall_type) => {
+                            self.data[position.y][position.x] = Cell::Wall(wall_type, player.color);
+                        }
+                        Err(_) => {
+                            self.data[position.y][position.x] = Cell::Collision;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn place_collision(&mut self, game_state: &GameState) {
+        if game_state.has_collision() {
+            let (position, _) = game_state.players[game_state.active_player]
+                .segments
+                .back()
+                .unwrap();
+            self.data[position.y][position.x] = Cell::Collision;
+        }
     }
 }
 
@@ -115,7 +210,8 @@ impl Debug for Grid {
                     Cell::Wall(..) => write!(f, "W")?,
                     Cell::Player(..) => write!(f, "P")?,
                     Cell::Empty => write!(f, " ")?,
-                    Cell::Explosion(x) => write!(f, "{}", if *x { "X" } else { " " })?,
+                    Cell::Collision => write!(f, "X")?,
+                    Cell::Letter(c, _) => write!(f, "{}", c)?,
                 }
             }
             writeln!(f)?;

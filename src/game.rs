@@ -17,21 +17,27 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use crate::layout::{Cell, Grid, WallType};
 use crate::common::{Color, Direction, Position};
-use std::{
-    collections::VecDeque,
-    fmt::Debug,
-};
+use std::{collections::VecDeque, fmt::Debug};
 
 #[derive(Clone, Debug)]
 pub struct Player {
     pub color: Color,
     pub score: u32,
-    pub position: Position,
-    pub direction: Direction,
-    pub action: Direction,
-    pub segments: VecDeque<Position>,
+    pub segments: VecDeque<(Position, Direction)>,
+}
+
+impl Player {
+    /// Set direction of the head segment of the specified player. This function
+    /// is called by the input handling logic to set the direction of the
+    /// player.
+    pub fn set_direction(&mut self, direction: Direction) {
+        let last = self.segments.back_mut();
+
+        if let Some(s) = last {
+            s.1 = direction;
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -44,150 +50,179 @@ pub enum Phase {
 #[derive(Clone, Debug)]
 pub struct GameState {
     pub phase: Phase,
-    pub grid: Grid,
-    pub player_turn: usize,
+    pub grid_width: usize,
+    pub grid_height: usize,
+    pub active_player: usize,
     pub players: Vec<Player>,
-    pub rounds: u32,
-    pub explosion: Option<Position>,
+    pub obstacles: Vec<Position>,
+    pub max_score: u32,
 }
 
 impl GameState {
-    pub fn next_player(&mut self) {
-        self.player_turn = (self.player_turn + 1) % self.players.len();
+    // Advance the game one step, by moving the active player in its direction.
+    // If the player hits a wall, the player is eliminated and the other players
+    // score a point. If a player scores the required number of points, the game
+    // is over. This function returns an event in the game, which is used
+    // by the layout logic to update the state of the world.
+    pub fn tick(&mut self) {
+        match self.phase {
+            Phase::Step => {
+                // while we are stepping, a tick progresses player movement and
+                // calculates the consequence
+                self.step();
+
+                if self.has_collision() {
+                    self.score();
+                    if self.is_game_over() {
+                        self.phase = Phase::GameOver;
+                    } else {
+                        self.phase = Phase::Score;
+                    }
+                } else {
+                    self.set_next_player();
+                    self.phase = Phase::Step;
+                }
+            },
+            Phase::Score => {
+                // while scoring, the next tick resets the players, allowing for
+                // an animation in between
+                self.reset_players();
+                self.phase = Phase::Step;
+            },
+            Phase::GameOver => {
+                // while the game is over, ticks do nothing
+                return;
+            }
+        }
+
+        
     }
 
-    pub fn next_round(&mut self) {
-        self.player_turn = 0;
-        self.grid.reset();
-        self.reset_players();
-        self.place_players();
-        self.phase = Phase::Step;
+    /// Advance the game one step, by moving the active player in its direction.
+    fn step(&mut self) {
+        let (new_position, direction) = {
+            let (position, direction) = self.players[self.active_player]
+                .segments
+                .back()
+                .expect(&format!("Player {} has no segments", self.active_player));
+
+            (
+                position.next(direction, self.grid_width, self.grid_height),
+                *direction,
+            )
+        };
+
+        self.players[self.active_player]
+            .segments
+            .push_back((new_position, direction));
     }
 
-    pub fn current_player(&self) -> &Player {
-        &self.players[self.player_turn]
+    /// Check whether the active player has collided with a wall or another player.
+    pub fn has_collision(&self) -> bool {
+        let current_player = &self.players[self.active_player];
+        let (position, _) = current_player
+            .segments
+            .back()
+            .expect(&format!("Player {} has no segments", self.active_player));
+
+        for obstacle in &self.obstacles {
+            if obstacle == position {
+                return true;
+            }
+        }
+
+        for (i, player) in self.players.iter().enumerate() {
+            for (j, (p, _)) in player.segments.iter().enumerate() {
+                if p == position {
+                    if self.active_player == i && j == player.segments.len() - 1 {
+                        // own head: not a collision
+                        continue;
+                    }
+
+                    return true;
+                }
+            }
+        }
+
+        false
     }
 
-    pub fn current_player_id(&self) -> usize {
-        self.player_turn
-    }
-
-    pub fn current_player_mut(&mut self) -> &mut Player {
-        &mut self.players[self.player_turn]
+    fn score(&mut self) {
+        self.players[self.active_player].score += 1;
     }
 
     fn reset_players(&mut self) {
         for (i, player) in self.players.iter_mut().enumerate() {
             if i == 0 {
-                player.position = Position { x: 10, y: 10 };
-                player.direction = Direction::South;
-                player.action = Direction::South;
+                player.segments =
+                    VecDeque::from(vec![(Position { x: 10, y: 10 }, Direction::South)]);
             } else if i == 1 {
-                player.position = Position { x: 20, y: 20 };
-                player.direction = Direction::North;
-                player.action = Direction::North;
+                player.segments =
+                    VecDeque::from(vec![(Position { x: 20, y: 20 }, Direction::North)]);
             } else {
                 // TODO: position >2 players
             }
         }
+
+        self.active_player = 0;
     }
 
-    fn place_players(&mut self) {
-        for (i, player) in self.players.iter_mut().enumerate() {
-            let x = player.position.x;
-            let y = player.position.y;
-            println!("placing player {} in position {}x{}", i, x, y);
-            self.grid.data[y][x] = Cell::Player(i);
-        }
-    }
-
-    pub fn step(&mut self) -> Phase {
-        let grid_width = self.grid.data[0].len();
-        let grid_height = self.grid.data.len();
-        let old_direction = self.current_player().direction;
-
-        self.current_player_mut().direction = self.current_player().action;
-
-        // find new position
-        let player = self.current_player();
-        let x = player.position.x;
-        let y = player.position.y;
-
-        let (dx, dy) = match player.direction {
-            Direction::North => (0, -1),
-            Direction::South => (0, 1),
-            Direction::West => (-1, 0),
-            Direction::East => (1, 0),
-        };
-
-        let nx = (x as isize + dx) as usize;
-        let ny = (y as isize + dy) as usize;
-
-        assert!(nx < grid_width);
-        assert!(ny < grid_height);
-
-        // place wall
-        let player = self.current_player_mut();
-        let wall_type = WallType::from_action(old_direction, player.action).unwrap();
-        self.grid.data[y][x] = Cell::Wall(wall_type, player.color);
-
-        // check the next cell for result of action
-        match self.grid.data[ny][nx] {
-            Cell::Wall(..) | Cell::Player(..) => {
-                // set explosion
-                self.explosion = Some(Position { x: nx, y: ny });
-                self.grid.data[ny][nx] = Cell::Explosion(true);
-
-                // other players score one point
-                for (i, p) in self.players.iter_mut().enumerate() {
-                    if i != self.player_turn {
-                        p.score += 1;
-                        println!("player {} score: {}", i, p.score);
-                    }
-                }
-
-                for p in self.players.iter() {
-                    // suggest next step
-                    if p.score >= self.rounds {
-                        return Phase::GameOver;
-                    }
-                }
-
-                Phase::Score
+    fn is_game_over(&self) -> bool {
+        for player in &self.players {
+            if player.score >= self.max_score {
+                return true;
             }
-            Cell::Empty => {
-                // move forward
-                let player = self.current_player_mut();
-                player.position.x = nx;
-                player.position.y = ny;
-                self.place_players();
-                self.next_player();
-
-                // suggest next step
-                Phase::Step
-            }
-            Cell::Explosion(..) => panic!("Cannot intersect with an explosion!"),
         }
+
+        return false;
     }
 
-    pub fn toggle_explosion(&mut self) {
-        if let Some(Position { x, y }) = self.explosion {
-            match self.grid.data[y][x] {
-                Cell::Explosion(explosion) => self.grid.data[y][x] = Cell::Explosion(!explosion),
-                _ => panic!("Explosion expected"),
-            }
-        } else {
-            panic!("No explosion to toggle");
-        }
+    fn set_next_player(&mut self) {
+        self.active_player = (self.active_player + 1) % self.players.len();
     }
+}
+
+/// Generate a wall with the specified width and height. The wall starts at the
+/// top middle and goes anti-clockwise around the grid.
+fn generate_wall(width: usize, height: usize) -> Vec<Position> {
+    let mut walls = vec![];
+
+    for i in 1..(width - 1) {
+        walls.push(Position {
+            x: width - 1 - i,
+            y: 0,
+        });
+    }
+
+    for i in 0..height {
+        walls.push(Position { x: 0, y: i });
+    }
+
+    for i in 1..(width - 1) {
+        walls.push(Position {
+            x: i,
+            y: height - 1,
+        });
+    }
+
+    for i in 0..height {
+        walls.push(Position {
+            x: width - 1,
+            y: height - 1 - i,
+        });
+    }
+
+    walls
 }
 
 impl Default for GameState {
     fn default() -> Self {
-        let mut state = GameState {
+        let width = 32;
+        let height = 28;
+
+        GameState {
             phase: Phase::Step,
-            grid: Grid::new(32, 28),
-            player_turn: 0,
+            active_player: 0,
             players: vec![
                 Player {
                     color: Color {
@@ -196,10 +231,7 @@ impl Default for GameState {
                         b: 0.0,
                     },
                     score: 0,
-                    position: Position { x: 10, y: 10 },
-                    direction: Direction::South,
-                    action: Direction::South,
-                    segments: VecDeque::new(),
+                    segments: VecDeque::from(vec![(Position { x: 10, y: 10 }, Direction::South)]),
                 },
                 Player {
                     color: Color {
@@ -208,17 +240,13 @@ impl Default for GameState {
                         b: 1.0,
                     },
                     score: 0,
-                    position: Position { x: 20, y: 20 },
-                    direction: Direction::North,
-                    action: Direction::North,
-                    segments: VecDeque::new(),
+                    segments: VecDeque::from(vec![(Position { x: 20, y: 20 }, Direction::North)]),
                 },
             ],
-            explosion: None,
-            rounds: 6,
-        };
-
-        state.place_players();
-        state
+            max_score: 6,
+            grid_width: width,
+            grid_height: height,
+            obstacles: generate_wall(width, height),
+        }
     }
 }

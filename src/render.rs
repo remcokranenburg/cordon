@@ -1,6 +1,9 @@
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
 
-use crate::{common, game, layout};
+use crate::{
+    common::{self, Color},
+    layout,
+};
 
 fn draw_wall(
     wall_type: &layout::WallType,
@@ -11,14 +14,10 @@ fn draw_wall(
     width: f64,
     height: f64,
 ) {
-    let r = color.r * 255.0;
-    let g = color.g * 255.0;
-    let b = color.b * 255.0;
-
-    c.set_fill_style_str(&format!("rgb({r}, {g}, {b})"));
+    c.set_fill_style_str(&color.to_string());
     c.fill_rect(x, y, width, height);
 
-    c.set_stroke_style_str("rgb(0, 0, 0)");
+    c.set_stroke_style_str(&Color::black().to_string());
     c.set_line_width(4.0);
 
     let half_width = width * 0.5;
@@ -70,16 +69,16 @@ fn draw_wall(
 
 pub fn draw_board(
     c: &CanvasRenderingContext2d,
-    game_state: &game::GameState,
+    grid_data: &Vec<Vec<layout::Cell>>,
     canvas: &HtmlCanvasElement,
 ) {
-    let cell_width = canvas.width() as f64 / game_state.grid.data[0].len() as f64;
-    let cell_height = canvas.height() as f64 / game_state.grid.data.len() as f64;
+    let cell_width = canvas.width() as f64 / grid_data[0].len() as f64;
+    let cell_height = canvas.height() as f64 / grid_data.len() as f64;
 
-    c.set_fill_style_str("rgb(0, 0, 0)");
+    c.set_fill_style_str(&Color::black().to_string());
     c.fill_rect(0.0, 0.0, canvas.width() as f64, canvas.height() as f64);
 
-    for (row_i, row) in game_state.grid.data.iter().enumerate() {
+    for (row_i, row) in grid_data.iter().enumerate() {
         for (cell_i, cell) in row.iter().enumerate() {
             let x = cell_i as f64 * cell_width;
             let x_mid = x + cell_width * 0.5;
@@ -92,16 +91,9 @@ pub fn draw_board(
                 layout::Cell::Wall(wall_type, color) => {
                     draw_wall(wall_type, color, c, x, y_high, cell_width, cell_height)
                 }
-                layout::Cell::Player(player_id) => {
-                    let player = &game_state.players[*player_id];
-                    let color = player.color;
-                    let r = color.r * 255.0;
-                    let g = color.g * 255.0;
-                    let b = color.b * 255.0;
-                    let direction = player.direction;
-
+                layout::Cell::Player(direction, color) => {
                     c.set_line_width(4.0);
-                    c.set_stroke_style_str(&format!("rgb({r}, {g}, {b})"));
+                    c.set_stroke_style_str(&color.to_string());
                     c.begin_path();
 
                     match direction {
@@ -129,13 +121,25 @@ pub fn draw_board(
 
                     c.stroke();
                 }
-                layout::Cell::Explosion(explosion) => {
-                    if *explosion {
-                        c.set_fill_style_str("rgb(255, 0, 0)");
-                        c.fill_rect(x, y_high, cell_width, cell_height);
-                    }
+                layout::Cell::Collision => {
+                    c.set_fill_style_str(&Color::yellow().to_string());
+                    c.fill_rect(x, y_high, cell_width, cell_height);
                 }
                 layout::Cell::Empty => {}
+                layout::Cell::Letter(letter, color) => {
+                    c.set_fill_style_str(&color.to_string());
+                    c.fill_rect(x, y_high, cell_width, cell_height);
+
+                    c.set_stroke_style_str(&Color::black().to_string());
+                    c.set_line_width(4.0);
+
+                    c.set_font("48px serif");
+                    c.set_text_align("center");
+                    c.set_text_baseline("middle");
+
+                    c.stroke_text_with_max_width(&letter.to_string(), x_mid, y_mid, cell_width)
+                        .unwrap();
+                }
             }
         }
     }

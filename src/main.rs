@@ -45,8 +45,8 @@ fn toggle_fullscreen() {
     }
 }
 
-fn handle_action(e: &KeyboardEvent, player: &mut game::Player, action: common::Direction) {
-    player.action = action;
+fn handle_action(e: &KeyboardEvent, player: &mut game::Player, direction: common::Direction) {
+    player.set_direction(direction);
     e.stop_propagation();
     e.prevent_default();
 }
@@ -62,11 +62,9 @@ fn App() -> impl IntoView {
         game::Phase::Step => {
             use_interval_fn(
                 move || {
-                    let mut game_state = set_game_state.write();
-                    let next_phase = game_state.step();
-                    game_state.phase = next_phase;
+                    set_game_state.update(|s| s.tick());
                 },
-                100,
+                150,
             );
         }
         game::Phase::Score => {
@@ -76,10 +74,8 @@ fn App() -> impl IntoView {
             use_interval_fn(
                 move || {
                     if explosion_frame.get() >= num_explosion_frames {
-                        set_game_state.update(|game_state| game_state.next_round());
+                        set_game_state.update(|s| s.tick());
                     } else {
-                        let mut game_state = set_game_state.write();
-                        game_state.toggle_explosion();
                         set_explosion_frame.update(|x| *x += 1);
                     }
                 },
@@ -143,10 +139,12 @@ fn App() -> impl IntoView {
 #[component]
 fn Board(game_state: ReadSignal<game::GameState>, debug_mode: ReadSignal<bool>) -> impl IntoView {
     let canvas_ref = NodeRef::<Canvas>::new();
+    let width = game_state.get().grid_width;
+    let height = game_state.get().grid_height;
+    let mut grid = layout::Grid::new(width, height, &game_state.get());
 
     Effect::new(move || {
         if let Some(canvas) = canvas_ref.get() {
-            let game_state = game_state.get();
             let c = canvas
                 .get_context("2d")
                 .unwrap()
@@ -154,7 +152,11 @@ fn Board(game_state: ReadSignal<game::GameState>, debug_mode: ReadSignal<bool>) 
                 .dyn_into::<CanvasRenderingContext2d>()
                 .unwrap();
 
-            render::draw_board(&c, &game_state, &canvas);
+            // update grid with game state
+            // TODO: don't replace the whole grid on every update
+            grid.reset(&game_state.get());
+
+            render::draw_board(&c, grid.get_data(), &canvas);
         }
     });
 
@@ -162,13 +164,16 @@ fn Board(game_state: ReadSignal<game::GameState>, debug_mode: ReadSignal<bool>) 
         <Show when=move || !debug_mode.get()
             fallback=move || view! {
                 <div>
-                    <pre style="text-align:left">{format!("{:#?}", game_state.get())}</pre>
+                    <p>max_score: {game_state.get().max_score}</p>
+                    <pre style="text-align:left">{format!("{:#?}", layout::Grid::new(width, height, &game_state.get()))}</pre>
+                    <p>active_player: {game_state.get().active_player}</p>
+                    <p>phase: {format!("{:?}", game_state.get().phase)}</p>
                 </div>
             }>
             <div class="board">
                 <canvas class="cell" node_ref={canvas_ref} width="640" height="560"></canvas>
                 <div class="cell">
-                    <div class="rounds">{game_state.get().rounds}</div>
+                    <div class="rounds">{game_state.get().max_score}</div>
                 </div>
             </div>
         </Show>

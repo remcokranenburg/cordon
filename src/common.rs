@@ -17,6 +17,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+use std::fmt::{self, Debug, Display, Formatter};
+
 #[derive(Copy, Clone, Debug)]
 pub enum Direction {
     North,
@@ -32,6 +34,84 @@ pub struct Color {
     pub b: f64,
 }
 
+impl Color {
+    pub fn black() -> Self {
+        Self {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+        }
+    }
+
+    pub fn white() -> Self {
+        Self {
+            r: 1.0,
+            g: 1.0,
+            b: 1.0,
+        }
+    }
+
+    pub fn red() -> Self {
+        Self {
+            r: 1.0,
+            g: 0.0,
+            b: 0.0,
+        }
+    }
+
+    pub fn green() -> Self {
+        Self {
+            r: 0.0,
+            g: 1.0,
+            b: 0.0,
+        }
+    }
+
+    pub fn blue() -> Self {
+        Self {
+            r: 0.0,
+            g: 0.0,
+            b: 1.0,
+        }
+    }
+
+    pub fn yellow() -> Self {
+        Self {
+            r: 1.0,
+            g: 1.0,
+            b: 0.0,
+        }
+    }
+
+    pub fn darken(&self) -> Self {
+        Self {
+            r: self.r * 0.5,
+            g: self.g * 0.5,
+            b: self.b * 0.5,
+        }
+    }
+
+    pub fn lighten(&self) -> Self {
+        Self {
+            r: f64::min(self.r * 1.5, 255.0),
+            g: f64::min(self.g * 1.5, 255.0),
+            b: f64::min(self.b * 1.5, 255.0),
+        }
+    }
+}
+
+impl Display for Color {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(
+            f,
+            "rgb({}, {}, {})",
+            self.r * 255.0,
+            self.g * 255.0,
+            self.b * 255.0
+        )
+    }
+}
+
 impl Default for Color {
     fn default() -> Self {
         Color {
@@ -42,8 +122,33 @@ impl Default for Color {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Position {
     pub x: usize,
     pub y: usize,
+}
+
+impl Position {
+    /// Determine the next position based on the current position and direction. Wraps around when
+    /// the position is outside the grid.
+    pub fn next(&self, direction: &Direction, width: usize, height: usize) -> Self {
+        match direction {
+            Direction::North => Position {
+                x: self.x,
+                y: if self.y == 0 { height - 1 } else { self.y - 1 },
+            },
+            Direction::South => Position {
+                x: self.x,
+                y: if self.y == height - 1 { 0 } else { self.y + 1 },
+            },
+            Direction::West => Position {
+                x: if self.x == 0 { width - 1 } else { self.x - 1 },
+                y: self.y,
+            },
+            Direction::East => Position {
+                x: if self.x == width - 1 { 0 } else { self.x + 1 },
+                y: self.y,
+            },
+        }
+    }
 }
