@@ -26,6 +26,12 @@ use std::{
     fmt::{self, Debug, Formatter},
 };
 
+#[derive(Debug)]
+pub enum WallError {
+    SelfCollision,
+    NotAdjacent,
+}
+
 #[derive(Copy, Clone, Debug)]
 pub enum WallType {
     Horizontal,
@@ -41,7 +47,7 @@ impl WallType {
     pub fn calculate_from_directions(
         i: usize,
         segments: &VecDeque<(Position, Direction)>,
-    ) -> Result<WallType, &'static str> {
+    ) -> Result<WallType, WallError> {
         if i == 0 {
             return Ok(WallType::Vertical);
         }
@@ -65,7 +71,7 @@ impl WallType {
             (Direction::North, Direction::South)
             | (Direction::South, Direction::North)
             | (Direction::West, Direction::East)
-            | (Direction::East, Direction::West) => Err("Collision"),
+            | (Direction::East, Direction::West) => Err(WallError::SelfCollision),
         }
     }
 
@@ -78,7 +84,7 @@ impl WallType {
     pub fn calculate_from_positions(
         i: usize,
         obstacles: &Vec<Position>,
-    ) -> Result<WallType, &'static str> {
+    ) -> Result<WallType, WallError> {
         let current = obstacles[i];
         let preceding = if i == 0 {
             obstacles[obstacles.len() - 1]
@@ -105,7 +111,7 @@ impl WallType {
             Ok(WallType::CornerBottomLeft)
         } else {
             log!("{:?} {:?} {:?}", preceding, current, following);
-            Err("Invalid wall placement")
+            Err(WallError::NotAdjacent)
         }
     }
 }
@@ -163,7 +169,8 @@ impl Grid {
     fn place_obstacles(&mut self, game_state: &GameState) {
         for (i, obstacle) in game_state.obstacles.iter().enumerate() {
             self.data[obstacle.y][obstacle.x] = Cell::Wall(
-                WallType::calculate_from_positions(i, &game_state.obstacles).unwrap(),
+                WallType::calculate_from_positions(i, &game_state.obstacles)
+                    .expect("should be contiguous"),
                 Default::default(),
             );
         }
