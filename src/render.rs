@@ -133,7 +133,7 @@ pub fn draw_board(
                     c.set_stroke_style_str(&Color::black().to_string());
                     c.set_line_width(4.0);
 
-                    c.set_font("48px serif");
+                    c.set_font("10px sans-serif");
                     c.set_text_align("center");
                     c.set_text_baseline("middle");
 

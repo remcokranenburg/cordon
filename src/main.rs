@@ -68,18 +68,9 @@ fn App() -> impl IntoView {
             );
         }
         game::Phase::Score => {
-            let num_explosion_frames = 20;
-            let (explosion_frame, set_explosion_frame) = signal(0);
-
             use_interval_fn(
-                move || {
-                    if explosion_frame.get() >= num_explosion_frames {
-                        set_game_state.update(|s| s.tick());
-                    } else {
-                        set_explosion_frame.update(|x| *x += 1);
-                    }
-                },
-                100,
+                move || set_game_state.update(|s| s.tick()),
+                2000,
             );
         }
         game::Phase::GameOver => {

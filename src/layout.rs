@@ -202,6 +202,12 @@ impl Grid {
                 .back()
                 .unwrap();
             self.data[position.y][position.x] = Cell::Collision;
+
+            for player in &game_state.players {
+                let (position, _) = player.segments.front().unwrap();
+                let digit = format!("{}", player.score).chars().nth(0).unwrap();
+                self.data[position.y][position.x] = Cell::Letter(digit, player.color);
+            }
         }
     }
 }

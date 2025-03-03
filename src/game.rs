@@ -146,7 +146,11 @@ impl GameState {
     }
 
     fn score(&mut self) {
-        self.players[self.active_player].score += 1;
+        for (i, player) in self.players.iter_mut().enumerate() {
+            if i != self.active_player {
+                player.score += 1;
+            }
+        }
     }
 
     fn reset_players(&mut self) {
