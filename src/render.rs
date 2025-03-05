@@ -92,30 +92,32 @@ pub fn draw_board(
                     draw_wall(wall_type, color, c, x, y_high, cell_width, cell_height)
                 }
                 layout::Cell::Player(direction, color) => {
-                    c.set_line_width(4.0);
+                    let line_width = 4.0;
+                    let margin = line_width / 2.0;
+                    c.set_line_width(line_width);
                     c.set_stroke_style_str(&color.to_string());
                     c.begin_path();
 
                     match direction {
                         common::Direction::North => {
-                            c.move_to(x + 2.0, y);
-                            c.line_to(x_mid, y_high + 2.0);
-                            c.line_to(x_high - 2.0, y);
+                            c.move_to(x + margin, y);
+                            c.line_to(x_mid, y_high + margin);
+                            c.line_to(x_high - margin, y);
                         }
                         common::Direction::South => {
-                            c.move_to(x + 2.0, y_high);
-                            c.line_to(x_mid, y - 2.0);
-                            c.line_to(x_high - 2.0, y_high);
+                            c.move_to(x + margin, y_high);
+                            c.line_to(x_mid, y - margin);
+                            c.line_to(x_high - margin, y_high);
                         }
                         common::Direction::West => {
-                            c.move_to(x_high, y + 2.0);
-                            c.line_to(x, y_mid);
-                            c.line_to(x_high, y_high - 2.0);
+                            c.move_to(x_high, y - 2.0);
+                            c.line_to(x + 2.0, y_mid);
+                            c.line_to(x_high, y_high + 2.0);
                         }
                         common::Direction::East => {
-                            c.move_to(x, y + 2.0);
-                            c.line_to(x_high, y_mid);
-                            c.line_to(x, y_high - 2.0);
+                            c.move_to(x, y - 2.0);
+                            c.line_to(x_high - 2.0, y_mid);
+                            c.line_to(x, y_high + 2.0);
                         }
                     }
 
