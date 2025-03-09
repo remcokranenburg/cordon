@@ -18,7 +18,7 @@ jobs:
       - run: cargo binstall trunk
       - run: rustup target add wasm32-unknown-unknown
       # - run: cargo test --verbose
-      - run: trunk build --verbose
+      - run: trunk build --release --verbose
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist/
