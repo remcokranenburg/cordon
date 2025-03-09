@@ -22,6 +22,7 @@ mod game;
 mod layout;
 mod render;
 
+use game::GameState;
 use leptos::{
     ev::{fullscreenchange, keydown},
     html::Canvas,
@@ -55,7 +56,7 @@ fn handle_action(e: &KeyboardEvent, player: &mut game::Player, direction: common
 fn App() -> impl IntoView {
     let (debug_mode, set_debug_mode) = signal(false);
     let (is_fullscreen, set_is_fullscreen) = signal(use_document().fullscreen().unwrap());
-    let (game_state, set_game_state) = signal::<game::GameState>(Default::default());
+    let (game_state, set_game_state) = signal(GameState::new(2, 6));
     let game_phase = Memo::new(move |_| game_state.get().phase);
 
     Effect::new(move || match game_phase.get() {
@@ -68,10 +69,7 @@ fn App() -> impl IntoView {
             );
         }
         game::Phase::Score => {
-            use_interval_fn(
-                move || set_game_state.update(|s| s.tick()),
-                2000,
-            );
+            use_interval_fn(move || set_game_state.update(|s| s.tick()), 2000);
         }
         game::Phase::GameOver => {
             log!("Game Over");
@@ -116,13 +114,26 @@ fn App() -> impl IntoView {
 
     view! {
         <div>
-            <div class="window-controls">
-                <h1>"Cordon"</h1>
-                <button on:click={move |_| toggle_fullscreen()}>
-                    {move || if is_fullscreen.get() { "Exit Fullscreen" } else { "Fullscreen" }}
-                </button>
-            </div>
             <Board game_state={game_state} debug_mode={debug_mode} />
+            <Menu set_game_state={set_game_state} is_fullscreen={is_fullscreen} />
+        </div>
+    }
+}
+
+#[component]
+fn Menu(
+    set_game_state: WriteSignal<game::GameState>,
+    is_fullscreen: ReadSignal<bool>,
+) -> impl IntoView {
+    view! {
+        <div class="menu">
+            <h1>"Cordon"</h1>
+            <button on:click={move |_| set_game_state.set(GameState::new(2, 6))}>
+                "New Game"
+            </button>
+            <button on:click={move |_| toggle_fullscreen()}>
+                {move || if is_fullscreen.get() { "Exit Fullscreen" } else { "Fullscreen" }}
+            </button>
         </div>
     }
 }

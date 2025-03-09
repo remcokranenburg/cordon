@@ -28,6 +28,14 @@ pub struct Player {
 }
 
 impl Player {
+    pub fn new(color: Color, position: Position, direction: Direction) -> Self {
+        Player {
+            color: color,
+            score: 0,
+            segments: VecDeque::from(vec![(position, direction)]),
+        }
+    }
+
     /// Set direction of the head segment of the specified player. This function
     /// is called by the input handling logic to set the direction of the
     /// player.
@@ -59,6 +67,24 @@ pub struct GameState {
 }
 
 impl GameState {
+    pub fn new(_num_players: usize, max_score: u32) -> Self {
+        let width = 32;
+        let height = 28;
+
+        GameState {
+            phase: Phase::Step,
+            active_player: 0,
+            players: vec![
+                Player::new(Color::red(), Position { x: 10, y: 10 }, Direction::South),
+                Player::new(Color::blue(), Position { x: 20, y: 20 }, Direction::North),
+            ],
+            max_score: max_score,
+            grid_width: width,
+            grid_height: height,
+            obstacles: generate_wall(width, height),
+        }
+    }
+
     // Advance the game one step, by moving the active player in its direction.
     // If the player hits a wall, the player is eliminated and the other players
     // score a point. If a player scores the required number of points, the game
@@ -215,40 +241,4 @@ fn generate_wall(width: usize, height: usize) -> Vec<Position> {
     }
 
     walls
-}
-
-impl Default for GameState {
-    fn default() -> Self {
-        let width = 32;
-        let height = 28;
-
-        GameState {
-            phase: Phase::Step,
-            active_player: 0,
-            players: vec![
-                Player {
-                    color: Color {
-                        r: 1.0,
-                        g: 0.0,
-                        b: 0.0,
-                    },
-                    score: 0,
-                    segments: VecDeque::from(vec![(Position { x: 10, y: 10 }, Direction::South)]),
-                },
-                Player {
-                    color: Color {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 1.0,
-                    },
-                    score: 0,
-                    segments: VecDeque::from(vec![(Position { x: 20, y: 20 }, Direction::North)]),
-                },
-            ],
-            max_score: 6,
-            grid_width: width,
-            grid_height: height,
-            obstacles: generate_wall(width, height),
-        }
-    }
 }
