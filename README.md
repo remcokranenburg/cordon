@@ -14,9 +14,13 @@ Gremlin quickly published two sequels to Blockade: Comotion (1976) and
 Hustle (1977). Comotion is a four-player variant of the original game with
 slightly altered scoring rules, and Hustle is a two-player snake-like game.
 
-## How to run
+## How to play
 
-Make sure you have the right tooling:
+**[Play Cordon](https://remcokranenburg.github.io/cordon)**
+
+## Run it locally
+
+If you want to run it locally, first make sure you have the right tooling:
 
 ```
 rustup target add wasm32-unknown-unknown
