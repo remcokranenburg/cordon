@@ -18,34 +18,20 @@
             height: 100vh;
         }
 
-        .window-controls {
-            display: flex;
-            text-align: right;
-            padding: 10px 0;
-        }
-
-        .window-controls h1 {
-            margin: 0;
-            flex-grow: 1;
-            text-align: left;
-        }
-
-        .window-controls button {
-            background-color: #000000;
-            color: #ffffff;
-            font-weight: bold;
-            border: 2px solid #00aa00;
-            padding: 5px 10px;
-            cursor: pointer;
-        }
-
         .board {
             display: grid;
+            width: 100%;
         }
 
         .board .cell {
             grid-column: 1;
             grid-row: 1;
+        }
+
+        canvas {
+            margin: 0 auto;
+            width: 100vmin;
+            height: calc(min(87.5vw, 100vh)); /* for 32:28 aspect ratio */
         }
 
         .rounds {

@@ -53,11 +53,34 @@ fn handle_action(e: &KeyboardEvent, player: &mut game::Player, direction: common
 }
 
 #[component]
+fn Menu(
+    set_game_state: WriteSignal<game::GameState>,
+    is_fullscreen: ReadSignal<bool>,
+) -> impl IntoView {
+    view! {
+        <div class="cell menu">
+            <h1>"Cordon"</h1>
+            <button on:click={move |_| set_game_state.set(GameState::new(2, 6))}>
+                "New Game"
+            </button>
+            <button on:click={move |_| toggle_fullscreen()}>
+                {move || if is_fullscreen.get() { "Exit Fullscreen" } else { "Fullscreen" }}
+            </button>
+        </div>
+    }
+}
+
+#[component]
 fn App() -> impl IntoView {
     let (debug_mode, set_debug_mode) = signal(false);
     let (is_fullscreen, set_is_fullscreen) = signal(use_document().fullscreen().unwrap());
     let (game_state, set_game_state) = signal(GameState::new(2, 6));
     let game_phase = Memo::new(move |_| game_state.get().phase);
+
+    let canvas_ref = NodeRef::<Canvas>::new();
+    let width = game_state.get().grid_width;
+    let height = game_state.get().grid_height;
+    let mut grid = layout::Grid::new(width, height, &game_state.get());
 
     Effect::new(move || match game_phase.get() {
         game::Phase::Step => {
@@ -112,41 +135,12 @@ fn App() -> impl IntoView {
         set_is_fullscreen.set(use_document().fullscreen().unwrap());
     });
 
-    view! {
-        <div>
-            <Board game_state={game_state} debug_mode={debug_mode} />
-            <Menu set_game_state={set_game_state} is_fullscreen={is_fullscreen} />
-        </div>
-    }
-}
-
-#[component]
-fn Menu(
-    set_game_state: WriteSignal<game::GameState>,
-    is_fullscreen: ReadSignal<bool>,
-) -> impl IntoView {
-    view! {
-        <div class="menu">
-            <h1>"Cordon"</h1>
-            <button on:click={move |_| set_game_state.set(GameState::new(2, 6))}>
-                "New Game"
-            </button>
-            <button on:click={move |_| toggle_fullscreen()}>
-                {move || if is_fullscreen.get() { "Exit Fullscreen" } else { "Fullscreen" }}
-            </button>
-        </div>
-    }
-}
-
-#[component]
-fn Board(game_state: ReadSignal<game::GameState>, debug_mode: ReadSignal<bool>) -> impl IntoView {
-    let canvas_ref = NodeRef::<Canvas>::new();
-    let width = game_state.get().grid_width;
-    let height = game_state.get().grid_height;
-    let mut grid = layout::Grid::new(width, height, &game_state.get());
-
     Effect::new(move || {
         if let Some(canvas) = canvas_ref.get() {
+            let rect = canvas.get_bounding_client_rect();
+            canvas.set_width(rect.width() as u32);
+            canvas.set_height(rect.height() as u32);
+
             let c = canvas
                 .get_context("2d")
                 .unwrap()
@@ -173,10 +167,11 @@ fn Board(game_state: ReadSignal<game::GameState>, debug_mode: ReadSignal<bool>) 
                 </div>
             }>
             <div class="board">
-                <canvas class="cell" node_ref={canvas_ref} width="640" height="560"></canvas>
+                <canvas class="cell" node_ref={canvas_ref}></canvas>
                 <div class="cell">
                     <div class="rounds">{game_state.get().max_score}</div>
                 </div>
+                <Menu set_game_state={set_game_state} is_fullscreen={is_fullscreen} />
             </div>
         </Show>
     }

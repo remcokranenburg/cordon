@@ -72,11 +72,18 @@ pub fn draw_board(
     grid_data: &Vec<Vec<layout::Cell>>,
     canvas: &HtmlCanvasElement,
 ) {
-    let cell_width = canvas.width() as f64 / grid_data[0].len() as f64;
-    let cell_height = canvas.height() as f64 / grid_data.len() as f64;
+    let canvas_width = canvas.width() as f64;
+    let canvas_height = canvas.height() as f64;
+
+    // Account for the fact that the canvas is not a perfect multiple of the grid size
+    let draw_width = (canvas_width / 32.0).floor() * 32.0;
+    let draw_height = (canvas_height / 28.0).floor() * 28.0;
+
+    let cell_width = draw_width / grid_data[0].len() as f64;
+    let cell_height = draw_height / grid_data.len() as f64;
 
     c.set_fill_style_str(&Color::black().to_string());
-    c.fill_rect(0.0, 0.0, canvas.width() as f64, canvas.height() as f64);
+    c.fill_rect(0.0, 0.0, canvas_width as f64, canvas_height as f64);
 
     for (row_i, row) in grid_data.iter().enumerate() {
         for (cell_i, cell) in row.iter().enumerate() {
@@ -110,14 +117,14 @@ pub fn draw_board(
                             c.line_to(x_high - margin, y_high);
                         }
                         common::Direction::West => {
-                            c.move_to(x_high, y - 2.0);
-                            c.line_to(x + 2.0, y_mid);
-                            c.line_to(x_high, y_high + 2.0);
+                            c.move_to(x_high, y - margin);
+                            c.line_to(x + margin, y_mid);
+                            c.line_to(x_high, y_high + margin);
                         }
                         common::Direction::East => {
-                            c.move_to(x, y - 2.0);
-                            c.line_to(x_high - 2.0, y_mid);
-                            c.line_to(x, y_high + 2.0);
+                            c.move_to(x, y - margin);
+                            c.line_to(x_high - margin, y_mid);
+                            c.line_to(x, y_high + margin);
                         }
                     }
 
