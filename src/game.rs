@@ -75,8 +75,15 @@ impl GameState {
             phase: Phase::Step,
             active_player: 0,
             players: vec![
-                Player::new(Color::red(), Position { x: 10, y: 10 }, Direction::South),
-                Player::new(Color::blue(), Position { x: 20, y: 20 }, Direction::North),
+                Player::new(Color::red(), Position { x: 4, y: 4 }, Direction::South),
+                Player::new(
+                    Color::blue(),
+                    Position {
+                        x: width - 5,
+                        y: height - 5,
+                    },
+                    Direction::North,
+                ),
             ],
             max_score: max_score,
             grid_width: width,
@@ -182,11 +189,15 @@ impl GameState {
     fn reset_players(&mut self) {
         for (i, player) in self.players.iter_mut().enumerate() {
             if i == 0 {
-                player.segments =
-                    VecDeque::from(vec![(Position { x: 10, y: 10 }, Direction::South)]);
+                player.segments = VecDeque::from(vec![(Position { x: 4, y: 4 }, Direction::South)]);
             } else if i == 1 {
-                player.segments =
-                    VecDeque::from(vec![(Position { x: 20, y: 20 }, Direction::North)]);
+                player.segments = VecDeque::from(vec![(
+                    Position {
+                        x: self.grid_width - 5,
+                        y: self.grid_height - 5,
+                    },
+                    Direction::North,
+                )]);
             } else {
                 // TODO: position >2 players
             }
