@@ -139,14 +139,14 @@ pub fn draw_board(
                     c.set_fill_style_str(&color.to_string());
                     c.fill_rect(x, y_high, cell_width, cell_height);
 
-                    c.set_stroke_style_str(&Color::black().to_string());
+                    c.set_fill_style_str(&Color::black().to_string());
                     c.set_line_width(4.0);
 
-                    c.set_font("10px sans-serif");
+                    c.set_font("bold 2vmin sans-serif");
                     c.set_text_align("center");
                     c.set_text_baseline("middle");
 
-                    c.stroke_text_with_max_width(&letter.to_string(), x_mid, y_mid, cell_width)
+                    c.fill_text_with_max_width(&letter.to_string(), x_mid, y_mid, cell_width)
                         .unwrap();
                 }
             }
