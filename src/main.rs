@@ -58,7 +58,7 @@ fn Menu(
     is_fullscreen: ReadSignal<bool>,
 ) -> impl IntoView {
     view! {
-        <div class="cell menu">
+        <div class="menu">
             <h1>"Cordon"</h1>
             <button on:click={move |_| set_game_state.set(GameState::new(2, 6))}>
                 "New Game"
@@ -166,13 +166,11 @@ fn App() -> impl IntoView {
                     <p>phase: {format!("{:?}", game_state.get().phase)}</p>
                 </div>
             }>
-            <div class="board">
-                <canvas class="cell" node_ref={canvas_ref}></canvas>
-                <div class="cell">
+                <canvas node_ref={canvas_ref}></canvas>
+                <div>
                     <div class="rounds">{game_state.get().max_score}</div>
                 </div>
                 <Menu set_game_state={set_game_state} is_fullscreen={is_fullscreen} />
-            </div>
         </Show>
     }
 }
@@ -181,7 +179,9 @@ fn main() {
     console_error_panic_hook::set_once();
     leptos::mount::mount_to_body(move || {
         view! {
-            <App />
+            <div class="layers">
+                <App />
+            </div>
         }
     });
 }

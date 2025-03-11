@@ -18,20 +18,17 @@
             height: 100vh;
         }
 
-        .board {
+        .layers {
             display: grid;
             width: 100%;
         }
 
-        .board .cell {
+        .layers > * {
             grid-column: 1;
             grid-row: 1;
-        }
-
-        canvas {
-            margin: 0 auto;
             width: 100vmin;
             height: calc(min(87.5vw, 100vh)); /* for 32:28 aspect ratio */
+            margin: 0 auto;
         }
 
         .rounds {
