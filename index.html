@@ -5,17 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cordon</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             padding: 0;
             background-color: #000;
             color: #fff;
             font-family: sans-serif;
-            text-align: center;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
+        }
+
+        h1 {
+            font-size: 4vmin;
+            color: green;
+            margin: 0;
+            text-align: center;
         }
 
         .layers {
@@ -42,6 +52,39 @@
             font-size: 2vmin;
             width: calc(100% / 32);
             height: calc(100% / 28);
+        }
+
+        .center {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+
+        .menu {
+            width: 25%;
+            height: 50%;
+            margin: 0 auto;
+            padding: 1vmin;
+            border: green solid 1vmin;
+            background-color: rgba(0, 0, 0, .8);
+        }
+
+        button {
+            display: block;
+            margin-top: 1vmin;
+            width: 100%;
+            height: 5vmin;
+            border: green solid 1vmin;
+            background: transparent;
+            color: green;
+            font-weight: bold;
+            font-size: 2vmin;
+        }
+
+        button:hover {
+            background: green;
+            color: black;
         }
     </style>
 </head>

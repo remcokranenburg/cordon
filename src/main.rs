@@ -58,14 +58,16 @@ fn Menu(
     is_fullscreen: ReadSignal<bool>,
 ) -> impl IntoView {
     view! {
-        <div class="menu">
-            <h1>"Cordon"</h1>
-            <button on:click={move |_| set_game_state.set(GameState::new(2, 6))}>
-                "New Game"
-            </button>
-            <button on:click={move |_| toggle_fullscreen()}>
-                {move || if is_fullscreen.get() { "Exit Fullscreen" } else { "Fullscreen" }}
-            </button>
+        <div class="center">
+            <div class="menu">
+                <h1>"Cordon"</h1>
+                <button on:click={move |_| set_game_state.set(GameState::new(2, 6))}>
+                    "New Game"
+                </button>
+                <button on:click={move |_| toggle_fullscreen()}>
+                    {move || if is_fullscreen.get() { "Exit Fullscreen" } else { "Fullscreen" }}
+                </button>
+            </div>
         </div>
     }
 }
@@ -170,7 +172,9 @@ fn App() -> impl IntoView {
                 <div>
                     <div class="rounds">{game_state.get().max_score}</div>
                 </div>
-                <Menu set_game_state={set_game_state} is_fullscreen={is_fullscreen} />
+                <div>
+                    <Menu set_game_state={set_game_state} is_fullscreen={is_fullscreen} />
+                </div>
         </Show>
     }
 }
