@@ -17,6 +17,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+mod bot;
 mod common;
 mod game;
 mod layout;
@@ -53,12 +54,12 @@ fn handle_action(e: &KeyboardEvent, player: &mut game::Player, direction: common
 }
 
 fn start_game(
-    max_score: u32,
+    num_players: usize,
     set_menu_page: WriteSignal<Option<MenuPage>>,
     set_game_state: WriteSignal<game::GameState>,
 ) {
     set_menu_page.set(None);
-    set_game_state.set(GameState::new(2, max_score));
+    set_game_state.set(GameState::new(num_players, 3));
 }
 
 #[derive(Debug, Clone)]
@@ -94,11 +95,11 @@ fn Menu(
             <div class="center">
                 <div class="menu">
                     <h1>"New Game"</h1>
-                    <button on:click={move |_| start_game(3, set_menu_page, set_game_state)}>
-                        "First to 3"
+                    <button on:click={move |_| start_game(1, set_menu_page, set_game_state)}>
+                        "One Player"
                     </button>
-                    <button on:click={move |_| start_game(6, set_menu_page, set_game_state)}>
-                        "First to 6"
+                    <button on:click={move |_| start_game(2, set_menu_page, set_game_state)}>
+                        "Two Players"
                     </button>
                     <button on:click={move |_| set_menu_page.set(Some(MenuPage::Main))}>
                         "Back"
@@ -130,7 +131,7 @@ fn App() -> impl IntoView {
     let (menu_page, set_menu_page) = signal(Some(MenuPage::Main));
     let (debug_mode, set_debug_mode) = signal(false);
     let (is_fullscreen, set_is_fullscreen) = signal(use_document().fullscreen().unwrap());
-    let (game_state, set_game_state) = signal(GameState::new(2, 6));
+    let (game_state, set_game_state) = signal(GameState::new(0, 6));
     let game_phase = memo!(game_state.phase);
     let max_score = memo!(game_state.max_score);
     let active_player = memo!(game_state.active_player);
@@ -169,24 +170,27 @@ fn App() -> impl IntoView {
 
         // Player keyboard input
         if game_phase.get() == game::Phase::Step {
-            set_game_state.update(|game_state| match e.key().as_str() {
-                "w" => handle_action(&e, &mut game_state.players[0], common::Direction::North),
-                "a" => handle_action(&e, &mut game_state.players[0], common::Direction::West),
-                "s" => handle_action(&e, &mut game_state.players[0], common::Direction::South),
-                "d" => handle_action(&e, &mut game_state.players[0], common::Direction::East),
-                "ArrowUp" => {
-                    handle_action(&e, &mut game_state.players[1], common::Direction::North)
+            set_game_state.update(|game_state| {
+                for player in game_state.players.iter_mut() {
+                    match player.controller {
+                        game::Controller::Wasd => match e.key().as_str(){
+                            "w" => handle_action(&e, player, common::Direction::North),
+                            "a" => handle_action(&e, player, common::Direction::West),
+                            "s" => handle_action(&e, player, common::Direction::South),
+                            "d" => handle_action(&e, player, common::Direction::East),
+                            _ => (),
+                        }
+                        game::Controller::Arrows => match e.key().as_str() {
+                            "ArrowUp" => handle_action(&e, player, common::Direction::North),
+                            "ArrowLeft" => handle_action(&e, player, common::Direction::West),
+                            "ArrowDown" => handle_action(&e, player, common::Direction::South),
+                            "ArrowRight" => handle_action(&e, player, common::Direction::East),
+                            _ => (),
+                        }
+                        game::Controller::Bot => (),
+                        _ => unimplemented!(),
+                    }
                 }
-                "ArrowLeft" => {
-                    handle_action(&e, &mut game_state.players[1], common::Direction::West)
-                }
-                "ArrowDown" => {
-                    handle_action(&e, &mut game_state.players[1], common::Direction::South)
-                }
-                "ArrowRight" => {
-                    handle_action(&e, &mut game_state.players[1], common::Direction::East)
-                }
-                _ => (),
             });
         }
     });

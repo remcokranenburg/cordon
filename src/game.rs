@@ -17,22 +17,32 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use crate::common::{Color, Direction, Position};
+use crate::{bot, common::{Color, Direction, Position}};
 use std::{collections::VecDeque, fmt::Debug};
+
+#[derive(Clone, Debug)]
+pub enum Controller {
+    Wasd,
+    Arrows,
+    Gamepad(u32),
+    Bot,
+}
 
 #[derive(Clone, Debug)]
 pub struct Player {
     pub color: Color,
     pub score: u32,
     pub segments: VecDeque<(Position, Direction)>,
+    pub controller: Controller,
 }
 
 impl Player {
-    pub fn new(color: Color, position: Position, direction: Direction) -> Self {
+    pub fn new(color: Color, position: Position, direction: Direction, controller: Controller) -> Self {
         Player {
             color: color,
             score: 0,
             segments: VecDeque::from(vec![(position, direction)]),
+            controller: controller,
         }
     }
 
@@ -67,15 +77,27 @@ pub struct GameState {
 }
 
 impl GameState {
-    pub fn new(_num_players: usize, max_score: u32) -> Self {
+    pub fn new(num_players: usize, max_score: u32) -> Self {
         let width = 32;
         let height = 28;
+
+        let player0_controller = if num_players > 0 {
+            Controller::Wasd
+        } else {
+            Controller::Bot
+        };
+
+        let player1_controller = if num_players > 1 {
+            Controller::Arrows
+        } else {
+            Controller::Bot
+        };
 
         GameState {
             phase: Phase::Step,
             active_player: 0,
             players: vec![
-                Player::new(Color::red(), Position { x: 4, y: 4 }, Direction::South),
+                Player::new(Color::red(), Position { x: 4, y: 4 }, Direction::South, player0_controller),
                 Player::new(
                     Color::blue(),
                     Position {
@@ -83,6 +105,7 @@ impl GameState {
                         y: height - 5,
                     },
                     Direction::North,
+                    player1_controller,
                 ),
             ],
             max_score: max_score,
@@ -100,9 +123,14 @@ impl GameState {
     pub fn tick(&mut self) {
         match self.phase {
             Phase::Step => {
+                if let Controller::Bot = self.players[self.active_player].controller {
+                    let new_direction = bot::drunk_lamppost_next(self);
+                    self.players[self.active_player].set_direction(new_direction);
+                }
+
                 // while we are stepping, a tick progresses player movement and
                 // calculates the consequence
-                self.step();
+                self._step();
 
                 if self.has_collision() {
                     self.score();
@@ -130,7 +158,7 @@ impl GameState {
     }
 
     /// Advance the game one step, by moving the active player in its direction.
-    fn step(&mut self) {
+    pub fn _step(&mut self) {
         let (new_position, direction) = {
             let (position, direction) = self.players[self.active_player]
                 .segments

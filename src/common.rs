@@ -19,12 +19,21 @@
 
 use std::fmt::{self, Debug, Display, Formatter};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Direction {
     North,
     South,
     West,
     East,
+}
+
+impl Direction {
+    pub const ALL: [Direction; 4] = [
+        Direction::North,
+        Direction::East,
+        Direction::South,
+        Direction::West,
+    ];
 }
 
 #[derive(Copy, Clone, Debug)]
