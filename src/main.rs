@@ -52,33 +52,90 @@ fn handle_action(e: &KeyboardEvent, player: &mut game::Player, direction: common
     e.prevent_default();
 }
 
+fn start_game(
+    max_score: u32,
+    set_menu_page: WriteSignal<Option<MenuPage>>,
+    set_game_state: WriteSignal<game::GameState>,
+) {
+    set_menu_page.set(None);
+    set_game_state.set(GameState::new(2, max_score));
+}
+
+#[derive(Debug, Clone)]
+enum MenuPage {
+    Main,
+    NewGame,
+    Settings,
+}
+
 #[component]
 fn Menu(
+    menu_page: ReadSignal<Option<MenuPage>>,
+    set_menu_page: WriteSignal<Option<MenuPage>>,
     set_game_state: WriteSignal<game::GameState>,
     is_fullscreen: ReadSignal<bool>,
 ) -> impl IntoView {
-    view! {
-        <div class="center">
-            <div class="menu">
-                <h1>"Cordon"</h1>
-                <button on:click={move |_| set_game_state.set(GameState::new(2, 6))}>
-                    "New Game"
-                </button>
-                <button on:click={move |_| toggle_fullscreen()}>
-                    {move || if is_fullscreen.get() { "Exit Fullscreen" } else { "Fullscreen" }}
-                </button>
+    move || match menu_page.get().expect("menu page should be set") {
+        MenuPage::Main => view! {
+            <div class="center">
+                <div class="menu">
+                    <h1>"Cordon"</h1>
+                    <button on:click={move |_| set_menu_page.set(Some(MenuPage::NewGame))}>
+                        "New Game"
+                    </button>
+                    <button on:click={move |_| set_menu_page.set(Some(MenuPage::Settings))}>
+                        "Settings"
+                    </button>
+                </div>
             </div>
-        </div>
+        }
+        .into_any(),
+        MenuPage::NewGame => view! {
+            <div class="center">
+                <div class="menu">
+                    <h1>"New Game"</h1>
+                    <button on:click={move |_| start_game(3, set_menu_page, set_game_state)}>
+                        "First to 3"
+                    </button>
+                    <button on:click={move |_| start_game(6, set_menu_page, set_game_state)}>
+                        "First to 6"
+                    </button>
+                    <button on:click={move |_| set_menu_page.set(Some(MenuPage::Main))}>
+                        "Back"
+                    </button>
+                </div>
+            </div>
+        }
+        .into_any(),
+        MenuPage::Settings => view! {
+            <div class="center">
+                <div class="menu">
+                    <h1>"Settings"</h1>
+                    <button on:click={move |_| toggle_fullscreen()}>
+                        {move || if is_fullscreen.get() { "Exit Fullscreen" } else { "Fullscreen" }}
+                    </button>
+                    <button on:click={move |_| set_menu_page.set(Some(MenuPage::Main))}>
+                        "Back"
+                    </button>
+                </div>
+            </div>
+        }
+        .into_any(),
     }
 }
 
 #[component]
 fn App() -> impl IntoView {
+    // signals
+    let (menu_page, set_menu_page) = signal(Some(MenuPage::Main));
     let (debug_mode, set_debug_mode) = signal(false);
     let (is_fullscreen, set_is_fullscreen) = signal(use_document().fullscreen().unwrap());
     let (game_state, set_game_state) = signal(GameState::new(2, 6));
-    let game_phase = Memo::new(move |_| game_state.get().phase);
+    let game_phase = memo!(game_state.phase);
+    let max_score = memo!(game_state.max_score);
+    let active_player = memo!(game_state.active_player);
 
+    // variables
     let canvas_ref = NodeRef::<Canvas>::new();
     let width = game_state.get().grid_width;
     let height = game_state.get().grid_height;
@@ -97,6 +154,7 @@ fn App() -> impl IntoView {
             use_interval_fn(move || set_game_state.update(|s| s.tick()), 2000);
         }
         game::Phase::GameOver => {
+            set_menu_page.set(Some(MenuPage::Main));
             log!("Game Over");
         }
     });
@@ -162,19 +220,21 @@ fn App() -> impl IntoView {
         <Show when=move || !debug_mode.get()
             fallback=move || view! {
                 <div>
-                    <p>max_score: {game_state.get().max_score}</p>
+                    <p>max_score: {max_score}</p>
                     <pre style="text-align:left">{format!("{:#?}", layout::Grid::new(width, height, &game_state.get()))}</pre>
-                    <p>active_player: {game_state.get().active_player}</p>
-                    <p>phase: {format!("{:?}", game_state.get().phase)}</p>
+                    <p>active_player: {active_player}</p>
+                    <p>phase: {format!("{:?}", game_phase.get())}</p>
                 </div>
             }>
                 <canvas node_ref={canvas_ref}></canvas>
                 <div>
-                    <div class="rounds">{game_state.get().max_score}</div>
+                    <div class="rounds">{max_score}</div>
                 </div>
-                <div>
-                    <Menu set_game_state={set_game_state} is_fullscreen={is_fullscreen} />
-                </div>
+                <Show when=move || menu_page.get().is_some()>
+                    <div>
+                        <Menu menu_page set_menu_page set_game_state is_fullscreen />
+                    </div>
+                </Show>
         </Show>
     }
 }
