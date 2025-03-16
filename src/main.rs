@@ -30,8 +30,12 @@ use leptos::{
     logging::log,
     prelude::*,
 };
-use leptos_use::{use_document, use_event_listener, use_interval_fn, use_window};
-use web_sys::{wasm_bindgen::JsCast, CanvasRenderingContext2d, KeyboardEvent};
+use leptos_use::{
+    use_active_element, use_document, use_event_listener, use_interval_fn, use_window,
+};
+use web_sys::{
+    wasm_bindgen::JsCast, CanvasRenderingContext2d, HtmlElement, KeyboardEvent, NodeList,
+};
 
 fn toggle_fullscreen() {
     let document = use_document();
@@ -161,32 +165,83 @@ fn App() -> impl IntoView {
     });
 
     let _cleanup = use_event_listener(use_window(), keydown, move |e| {
-        // on Ctrl+D toggle debug mode
-        if e.ctrl_key() && e.key() == "d" {
+        let nav_prev = ["ArrowUp", "w"];
+        let nav_next = ["ArrowDown", "s"];
+        let nav_keys = [nav_prev, nav_next].concat();
+        let key = e.key();
+        let ctrl = e.ctrl_key();
+
+        if ctrl && key == "d" {
+            // Debug mode: Ctrl + D
             set_debug_mode.set(!debug_mode.get());
             e.prevent_default();
             return;
-        }
+        } else if menu_page.get().is_some() && nav_keys.contains(&key.as_str()) {
+            // Menu keyboard input
+            let menu_items: NodeList = use_document()
+                .query_selector_all("button")
+                .unwrap()
+                .unwrap()
+                .dyn_into()
+                .unwrap();
+            let first_item: HtmlElement = menu_items
+                .item(0)
+                .expect("Menu should have at least one item")
+                .dyn_into()
+                .unwrap();
 
-        // Player keyboard input
-        if game_phase.get() == game::Phase::Step {
+            'focus_next: {
+                match use_active_element().get() {
+                    Some(element) => {
+                        // If the active element is in the list of buttons, go to next or previous
+                        for (i, button) in menu_items.values().into_iter().enumerate() {
+                            let i = i as u32;
+                            if element == button.unwrap().dyn_into().unwrap() {
+                                let next_button = menu_items
+                                    .item(if nav_prev.contains(&key.as_str()) {
+                                        i.checked_sub(1).unwrap_or(menu_items.length() - 1)
+                                    } else if nav_next.contains(&key.as_str()) {
+                                        i + 1
+                                    } else {
+                                        0
+                                    })
+                                    .unwrap_or(menu_items.item(0).unwrap())
+                                    .dyn_into::<HtmlElement>()
+                                    .unwrap();
+                                next_button.focus().unwrap();
+                                e.prevent_default();
+                                break 'focus_next;
+                            }
+                        }
+
+                        // If the active element is not in the menu, focus the first button
+                        first_item.focus().unwrap();
+                    }
+                    None => {
+                        // If there is no active element, focus the first button
+                        first_item.focus().unwrap();
+                    }
+                }
+            }
+        } else if game_phase.get_untracked() == game::Phase::Step {
+            // Player keyboard input
             set_game_state.update(|game_state| {
                 for player in game_state.players.iter_mut() {
                     match player.controller {
-                        game::Controller::Wasd => match e.key().as_str(){
+                        game::Controller::Wasd => match e.key().as_str() {
                             "w" => handle_action(&e, player, common::Direction::North),
                             "a" => handle_action(&e, player, common::Direction::West),
                             "s" => handle_action(&e, player, common::Direction::South),
                             "d" => handle_action(&e, player, common::Direction::East),
                             _ => (),
-                        }
+                        },
                         game::Controller::Arrows => match e.key().as_str() {
                             "ArrowUp" => handle_action(&e, player, common::Direction::North),
                             "ArrowLeft" => handle_action(&e, player, common::Direction::West),
                             "ArrowDown" => handle_action(&e, player, common::Direction::South),
                             "ArrowRight" => handle_action(&e, player, common::Direction::East),
                             _ => (),
-                        }
+                        },
                         game::Controller::Bot => (),
                         _ => unimplemented!(),
                     }
