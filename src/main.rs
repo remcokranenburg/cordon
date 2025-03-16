@@ -71,6 +71,7 @@ enum MenuPage {
     Main,
     NewGame,
     Settings,
+    About,
 }
 
 #[component]
@@ -80,17 +81,23 @@ fn Menu(
     set_game_state: WriteSignal<game::GameState>,
     is_fullscreen: ReadSignal<bool>,
 ) -> impl IntoView {
-    move || match menu_page.get().expect("menu page should be set") {
+    move || {
+        match menu_page.get().expect("menu page should be set") {
         MenuPage::Main => view! {
             <div class="center">
                 <div class="menu">
                     <h1>"Cordon"</h1>
-                    <button on:click={move |_| set_menu_page.set(Some(MenuPage::NewGame))}>
-                        "New Game"
-                    </button>
-                    <button on:click={move |_| set_menu_page.set(Some(MenuPage::Settings))}>
-                        "Settings"
-                    </button>
+                    <div class="items">
+                        <button on:click={move |_| set_menu_page.set(Some(MenuPage::NewGame))}>
+                            "New Game"
+                        </button>
+                        <button on:click={move |_| set_menu_page.set(Some(MenuPage::Settings))}>
+                            "Settings"
+                        </button>
+                        <button on:click={move |_| set_menu_page.set(Some(MenuPage::About))}>
+                            "About"
+                        </button>
+                    </div>
                 </div>
             </div>
         }
@@ -99,12 +106,14 @@ fn Menu(
             <div class="center">
                 <div class="menu">
                     <h1>"New Game"</h1>
-                    <button on:click={move |_| start_game(1, set_menu_page, set_game_state)}>
-                        "One Player"
-                    </button>
-                    <button on:click={move |_| start_game(2, set_menu_page, set_game_state)}>
-                        "Two Players"
-                    </button>
+                    <div class="items">
+                        <button on:click={move |_| start_game(1, set_menu_page, set_game_state)}>
+                            "One Player"
+                        </button>
+                        <button on:click={move |_| start_game(2, set_menu_page, set_game_state)}>
+                            "Two Players"
+                        </button>
+                    </div>
                     <button on:click={move |_| set_menu_page.set(Some(MenuPage::Main))}>
                         "Back"
                     </button>
@@ -116,9 +125,11 @@ fn Menu(
             <div class="center">
                 <div class="menu">
                     <h1>"Settings"</h1>
-                    <button on:click={move |_| toggle_fullscreen()}>
-                        {move || if is_fullscreen.get() { "Exit Fullscreen" } else { "Fullscreen" }}
-                    </button>
+                    <div class="items">
+                        <button on:click={move |_| toggle_fullscreen()}>
+                            {move || if is_fullscreen.get() { "Exit Fullscreen" } else { "Fullscreen" }}
+                        </button>
+                    </div>
                     <button on:click={move |_| set_menu_page.set(Some(MenuPage::Main))}>
                         "Back"
                     </button>
@@ -126,6 +137,35 @@ fn Menu(
             </div>
         }
         .into_any(),
+        MenuPage::About => view! {
+            <div class="center">
+                <div class="menu">
+                    <h1>About</h1>
+
+                    <div class="items">
+                        <p>
+                            <i>Cordon</i> " is a game where you draw walls to trap your opponent,
+                            like Tron or Snake. You can play against a bot or another player."
+                        </p>
+                        <p>
+                            "This is a remake of " <i>Blockade</i> " (1976), originally created by
+                            Gremlin. Two sequels were made: " <i>CoMOTION</i> " (1976) and " <i>Hustle</i>
+                            " (1977)."
+                        </p>
+                        <p>
+                            "This game is free software, licensed under the GNU Affero General Public
+                            License version 3 or later. The source code is available on "
+                            <a href="https://github.com/remcokranenburg/cordon">"GitHub"</a> "."
+                        </p>
+                    </div>
+
+                    <button on:click={move |_| set_menu_page.set(Some(MenuPage::Main))}>
+                        "Back"
+                    </button>
+                </div>
+            </div>
+        }.into_any(),
+    }
     }
 }
 
