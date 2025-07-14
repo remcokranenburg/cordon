@@ -18,7 +18,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 use crate::{common::Direction, game::GameState};
-use web_sys::js_sys::Math;
+use js_sys::Math;
 
 /// Drunk lamppost bot. This bot will randomly choose a direction to go to, but
 /// will avoid collisions. It will also try to keep the current direction if

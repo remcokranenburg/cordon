@@ -17,8 +17,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use leptos::logging::log;
-
 use crate::common::{Color, Direction, Position};
 use crate::game::{GameState, Player};
 use std::{
@@ -110,7 +108,7 @@ impl WallType {
         } else if preceding.y < current.y && following.x > current.x {
             Ok(WallType::CornerBottomLeft)
         } else {
-            log!("{:?} {:?} {:?}", preceding, current, following);
+            // log!("{:?} {:?} {:?}", preceding, current, following);
             Err(WallError::NotAdjacent)
         }
     }

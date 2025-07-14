@@ -63,6 +63,7 @@ pub enum Phase {
     Step,
     Score,
     GameOver,
+    Paused,
 }
 
 #[derive(Clone, Debug)]
@@ -150,8 +151,8 @@ impl GameState {
                 self.reset_players();
                 self.phase = Phase::Step;
             }
-            Phase::GameOver => {
-                // while the game is over, ticks do nothing
+            Phase::GameOver | Phase::Paused => {
+                // while the game is not running, ticks do nothing
                 return;
             }
         }
