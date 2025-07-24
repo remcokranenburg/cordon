@@ -17,6 +17,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+use bevy::prelude::*;
 use crate::{bot, common::{Color, Direction, Position}};
 use std::{collections::VecDeque, fmt::Debug};
 
@@ -66,7 +67,7 @@ pub enum Phase {
     Paused,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Resource)]
 pub struct GameState {
     pub phase: Phase,
     pub grid_width: usize,

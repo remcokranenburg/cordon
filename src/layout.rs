@@ -17,6 +17,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+use bevy::prelude::*;
 use crate::common::{Color, Direction, Position};
 use crate::game::{GameState, Player};
 use std::{
@@ -130,7 +131,7 @@ impl Cell {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Resource)]
 pub struct Grid {
     data: Vec<Vec<Cell>>,
 }

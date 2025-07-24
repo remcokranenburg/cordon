@@ -1,4 +1,25 @@
-use crate::{despawn_screen, AppState};
+// Cordon
+//
+// Copyright 2025 Remco Kranenburg <remco@burgsoft.nl>
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+use std::f64::consts::PI;
+
+use crate::{CORDON_GREEN, despawn_screen, states::AppState};
 use bevy::prelude::*;
 
 // This plugin will display a splash screen with Bevy logo for 1 second before switching to the menu
@@ -15,9 +36,6 @@ pub fn plugin(app: &mut App) {
 
 #[derive(Component)]
 struct OnSplashScreen;
-
-#[derive(Component)]
-struct CountDownText;
 
 // Newtype to use a `Timer` for this screen as a resource
 #[derive(Resource, Deref, DerefMut)]
@@ -37,20 +55,18 @@ fn setup(mut commands: Commands) {
         OnSplashScreen,
         children![
             (
-                Text::new("Cordon"),
+                Text::new("Remco Kranenburg"),
+                TextColor(CORDON_GREEN),
                 TextFont {
-                    font_size: 67.0,
+                    font_size: 32.0,
                     ..default()
                 },
             ),
-            (
-                Text::new("Press a key or button... "),
-                children![(TextSpan::default(), CountDownText,),]
-            )
+            (Text::new("Presents"), TextColor(CORDON_GREEN),),
         ],
     ));
     // Insert the timer as a resource
-    commands.insert_resource(SplashTimer(Timer::from_seconds(2.0, TimerMode::Once)));
+    commands.insert_resource(SplashTimer(Timer::from_seconds(4.0, TimerMode::Once)));
 }
 
 // Tick the timer, and change state when finished
@@ -58,14 +74,19 @@ fn countdown(
     mut app_state: ResMut<NextState<AppState>>,
     time: Res<Time>,
     mut timer: ResMut<SplashTimer>,
-    query: Query<&mut TextSpan, With<CountDownText>>,
+    query: Query<&mut TextColor>,
 ) {
     if timer.tick(time.delta()).finished() {
         app_state.set(AppState::Menu);
     }
 
-    for mut span in query {
+    for mut color in query {
         let elapsed_secs = timer.elapsed_secs_f64();
-        **span = format!("{elapsed_secs:.1}s");
+        *color = CORDON_GREEN
+            .mix(
+                &Color::BLACK,
+                1.0 - f32::sin((elapsed_secs * PI / 4.0) as f32),
+            )
+            .into();
     }
 }

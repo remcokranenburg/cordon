@@ -21,10 +21,11 @@ mod bot;
 mod common;
 mod game;
 mod layout;
+mod render;
 mod states;
-// mod render;
+mod window;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, render::camera::Viewport, window::WindowResized};
 
 const CORDON_GREEN: Color = Color::srgb(0.0, 0.8, 0.0);
 const CORDON_GREEN_HIGHLIGHT: Color = Color::srgb(0.0, 1.0, 0.0);
@@ -324,41 +325,13 @@ const CORDON_BLUE: Color = Color::srgb(0.0, 0.0, 0.8);
 //     }
 // }
 
-#[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States)]
-pub enum AppState {
-    #[default]
-    Splash,
-    Menu,
-    Game,
-    About,
-}
-
 fn main() {
     console_error_panic_hook::set_once();
 
-    let app = App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                fit_canvas_to_parent: true,
-                prevent_default_event_handling: false,
-                title: "Cordon".into(),
-                window_theme: Some(bevy::window::WindowTheme::Dark),
-                ..Default::default()
-            }),
-            ..Default::default()
-        }))
-        .init_state::<AppState>()
-        .add_systems(Startup, setup)
-        .add_plugins((
-            states::splash::plugin,
-            states::menu::plugin,
-            // states::game::plugin,
-        ))
+    App::new()
+        .add_plugins((window::plugin, render::plugin, states::plugin))
+        .insert_resource(crate::game::GameState::new(0, 6))
         .run();
-}
-
-fn setup(mut commands: Commands) {
-    commands.spawn(Camera2d);
 }
 
 // Generic system that takes a component as a parameter, and will despawn all entities with that component

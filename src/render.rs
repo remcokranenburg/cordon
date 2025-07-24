@@ -1,155 +1,240 @@
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
+// Cordon
+//
+// Copyright 2025 Remco Kranenburg <remco@burgsoft.nl>
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 use crate::{
+    CORDON_BLUE, CORDON_GREEN, CORDON_RED,
     common::{self, Color},
     layout,
 };
+use bevy::prelude::*;
 
-fn draw_wall(
-    wall_type: &layout::WallType,
-    color: &common::Color,
-    c: &CanvasRenderingContext2d,
-    x: f64,
-    y: f64,
-    width: f64,
-    height: f64,
-) {
-    c.set_fill_style_str(&color.to_string());
-    c.fill_rect(x, y, width, height);
-
-    c.set_stroke_style_str(&Color::black().to_string());
-    c.set_line_width(4.0);
-
-    let half_width = width * 0.5;
-    let half_height = height * 0.5;
-
-    match wall_type {
-        layout::WallType::Horizontal => {
-            c.begin_path();
-            c.move_to(x, y + half_height);
-            c.line_to(x + width, y + half_height);
-            c.stroke();
-        }
-        layout::WallType::Vertical => {
-            c.begin_path();
-            c.move_to(x + half_width, y);
-            c.line_to(x + half_width, y + height);
-            c.stroke();
-        }
-        layout::WallType::CornerTopLeft => {
-            c.begin_path();
-            c.move_to(x + half_width, y + height);
-            c.line_to(x + half_width, y + half_height);
-            c.line_to(x + width, y + half_height);
-            c.stroke();
-        }
-        layout::WallType::CornerTopRight => {
-            c.begin_path();
-            c.move_to(x, y + half_height);
-            c.line_to(x + half_width, y + half_height);
-            c.line_to(x + half_width, y + height);
-            c.stroke();
-        }
-        layout::WallType::CornerBottomLeft => {
-            c.begin_path();
-            c.move_to(x + half_width, y);
-            c.line_to(x + half_width, y + half_height);
-            c.line_to(x + width, y + half_height);
-            c.stroke();
-        }
-        layout::WallType::CornerBottomRight => {
-            c.begin_path();
-            c.move_to(x, y + half_height);
-            c.line_to(x + half_width, y + half_height);
-            c.line_to(x + half_width, y);
-            c.stroke();
-        }
-    }
+pub fn plugin(app: &mut App) {
+    app.add_systems(Startup, setup);
+    app.add_systems(Update, draw_board);
 }
 
-pub fn draw_board(
-    c: &CanvasRenderingContext2d,
-    grid_data: &Vec<Vec<layout::Cell>>,
-    canvas: &HtmlCanvasElement,
+fn setup(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    game_state: Res<crate::game::GameState>,
 ) {
-    let canvas_width = canvas.width() as f64;
-    let canvas_height = canvas.height() as f64;
+    // Load any assets or resources needed for rendering the board
+    let rectangle_mesh = meshes.add(Rectangle::new(32.0, 32.0));
+    let cordon_red = materials.add(CORDON_RED);
+    let cordon_green = materials.add(CORDON_GREEN);
+    let cordon_blue = materials.add(CORDON_BLUE);
 
-    // Account for the fact that the canvas is not a perfect multiple of the grid size
-    let draw_width = (canvas_width / 32.0).floor() * 32.0;
-    let draw_height = (canvas_height / 28.0).floor() * 28.0;
+    // TODO: create a resource for the Grid and modify it as needed
+    let width = game_state.grid_width;
+    let height = game_state.grid_height;
+    let grid = layout::Grid::new(width, height, &game_state);
 
-    let cell_width = draw_width / grid_data[0].len() as f64;
-    let cell_height = draw_height / grid_data.len() as f64;
-
-    c.set_fill_style_str(&Color::black().to_string());
-    c.fill_rect(0.0, 0.0, canvas_width as f64, canvas_height as f64);
-
-    for (row_i, row) in grid_data.iter().enumerate() {
+    for (row_i, row) in grid.get_data().iter().enumerate() {
         for (cell_i, cell) in row.iter().enumerate() {
-            let x = cell_i as f64 * cell_width;
-            let x_mid = x + cell_width * 0.5;
-            let x_high = x + cell_width;
-            let y = row_i as f64 * cell_height + cell_height;
-            let y_mid = y - cell_height * 0.5;
-            let y_high = y - cell_height;
+            let x = cell_i as f32 * 32.0 - 960.0; // Assuming each cell is 32x32 pixels
+            let y = row_i as f32 * 28.0 - 540.0; // Assuming each cell is 28 pixels high
 
             match cell {
                 layout::Cell::Wall(wall_type, color) => {
-                    draw_wall(wall_type, color, c, x, y_high, cell_width, cell_height)
+                    // Draw wall
+                    commands.spawn((
+                        Mesh2d(rectangle_mesh.clone()),
+                        MeshMaterial2d(cordon_green.clone()),
+                        Transform::from_xyz(x, y, 0.0),
+                    ));
                 }
                 layout::Cell::Player(direction, color) => {
-                    let line_width = 4.0;
-                    let margin = line_width / 2.0;
-                    c.set_line_width(line_width);
-                    c.set_stroke_style_str(&color.to_string());
-                    c.begin_path();
-
-                    match direction {
-                        common::Direction::North => {
-                            c.move_to(x + margin, y);
-                            c.line_to(x_mid, y_high + margin);
-                            c.line_to(x_high - margin, y);
-                        }
-                        common::Direction::South => {
-                            c.move_to(x + margin, y_high);
-                            c.line_to(x_mid, y - margin);
-                            c.line_to(x_high - margin, y_high);
-                        }
-                        common::Direction::West => {
-                            c.move_to(x_high, y - margin);
-                            c.line_to(x + margin, y_mid);
-                            c.line_to(x_high, y_high + margin);
-                        }
-                        common::Direction::East => {
-                            c.move_to(x, y - margin);
-                            c.line_to(x_high - margin, y_mid);
-                            c.line_to(x, y_high + margin);
-                        }
-                    }
-
-                    c.stroke();
+                    // Draw player
+                    commands.spawn((
+                        Mesh2d(rectangle_mesh.clone()),
+                        MeshMaterial2d(cordon_blue.clone()),
+                        Transform::from_xyz(x, y, 0.0),
+                    ));
                 }
                 layout::Cell::Collision => {
-                    c.set_fill_style_str(&Color::yellow().to_string());
-                    c.fill_rect(x, y_high, cell_width, cell_height);
+                    // Draw collision area
+                    commands.spawn((
+                        Mesh2d(rectangle_mesh.clone()),
+                        MeshMaterial2d(cordon_red.clone()),
+                        Transform::from_xyz(x, y, 0.0),
+                    ));
                 }
-                layout::Cell::Empty => {}
                 layout::Cell::Letter(letter, color) => {
-                    c.set_fill_style_str(&color.to_string());
-                    c.fill_rect(x, y_high, cell_width, cell_height);
-
-                    c.set_fill_style_str(&Color::black().to_string());
-                    c.set_line_width(4.0);
-
-                    c.set_font("bold 2vmin sans-serif");
-                    c.set_text_align("center");
-                    c.set_text_baseline("middle");
-
-                    c.fill_text_with_max_width(&letter.to_string(), x_mid, y_mid, cell_width)
-                        .unwrap();
+                    // Draw letter
+                    // TODO: Implement letter rendering
+                }
+                layout::Cell::Empty => {
+                    // Do nothing for empty cells
                 }
             }
         }
     }
 }
+
+fn draw_board(mut commands: Commands, game_state: Res<crate::game::GameState>) {}
+
+// fn draw_wall(
+//     wall_type: &layout::WallType,
+//     color: &common::Color,
+//     c: &CanvasRenderingContext2d,
+//     x: f64,
+//     y: f64,
+//     width: f64,
+//     height: f64,
+// ) {
+//     c.set_fill_style_str(&color.to_string());
+//     c.fill_rect(x, y, width, height);
+
+//     c.set_stroke_style_str(&Color::black().to_string());
+//     c.set_line_width(4.0);
+
+//     let half_width = width * 0.5;
+//     let half_height = height * 0.5;
+
+//     match wall_type {
+//         layout::WallType::Horizontal => {
+//             c.begin_path();
+//             c.move_to(x, y + half_height);
+//             c.line_to(x + width, y + half_height);
+//             c.stroke();
+//         }
+//         layout::WallType::Vertical => {
+//             c.begin_path();
+//             c.move_to(x + half_width, y);
+//             c.line_to(x + half_width, y + height);
+//             c.stroke();
+//         }
+//         layout::WallType::CornerTopLeft => {
+//             c.begin_path();
+//             c.move_to(x + half_width, y + height);
+//             c.line_to(x + half_width, y + half_height);
+//             c.line_to(x + width, y + half_height);
+//             c.stroke();
+//         }
+//         layout::WallType::CornerTopRight => {
+//             c.begin_path();
+//             c.move_to(x, y + half_height);
+//             c.line_to(x + half_width, y + half_height);
+//             c.line_to(x + half_width, y + height);
+//             c.stroke();
+//         }
+//         layout::WallType::CornerBottomLeft => {
+//             c.begin_path();
+//             c.move_to(x + half_width, y);
+//             c.line_to(x + half_width, y + half_height);
+//             c.line_to(x + width, y + half_height);
+//             c.stroke();
+//         }
+//         layout::WallType::CornerBottomRight => {
+//             c.begin_path();
+//             c.move_to(x, y + half_height);
+//             c.line_to(x + half_width, y + half_height);
+//             c.line_to(x + half_width, y);
+//             c.stroke();
+//         }
+//     }
+// }
+
+// pub fn draw_board(
+//     c: &CanvasRenderingContext2d,
+//     grid_data: &Vec<Vec<layout::Cell>>,
+//     canvas: &HtmlCanvasElement,
+// ) {
+//     let canvas_width = canvas.width() as f64;
+//     let canvas_height = canvas.height() as f64;
+
+//     // Account for the fact that the canvas is not a perfect multiple of the grid size
+//     let draw_width = (canvas_width / 32.0).floor() * 32.0;
+//     let draw_height = (canvas_height / 28.0).floor() * 28.0;
+
+//     let cell_width = draw_width / grid_data[0].len() as f64;
+//     let cell_height = draw_height / grid_data.len() as f64;
+
+//     c.set_fill_style_str(&Color::black().to_string());
+//     c.fill_rect(0.0, 0.0, canvas_width as f64, canvas_height as f64);
+
+//     for (row_i, row) in grid_data.iter().enumerate() {
+//         for (cell_i, cell) in row.iter().enumerate() {
+//             let x = cell_i as f64 * cell_width;
+//             let x_mid = x + cell_width * 0.5;
+//             let x_high = x + cell_width;
+//             let y = row_i as f64 * cell_height + cell_height;
+//             let y_mid = y - cell_height * 0.5;
+//             let y_high = y - cell_height;
+
+//             match cell {
+//                 layout::Cell::Wall(wall_type, color) => {
+//                     draw_wall(wall_type, color, c, x, y_high, cell_width, cell_height)
+//                 }
+//                 layout::Cell::Player(direction, color) => {
+//                     let line_width = 4.0;
+//                     let margin = line_width / 2.0;
+//                     c.set_line_width(line_width);
+//                     c.set_stroke_style_str(&color.to_string());
+//                     c.begin_path();
+
+//                     match direction {
+//                         common::Direction::North => {
+//                             c.move_to(x + margin, y);
+//                             c.line_to(x_mid, y_high + margin);
+//                             c.line_to(x_high - margin, y);
+//                         }
+//                         common::Direction::South => {
+//                             c.move_to(x + margin, y_high);
+//                             c.line_to(x_mid, y - margin);
+//                             c.line_to(x_high - margin, y_high);
+//                         }
+//                         common::Direction::West => {
+//                             c.move_to(x_high, y - margin);
+//                             c.line_to(x + margin, y_mid);
+//                             c.line_to(x_high, y_high + margin);
+//                         }
+//                         common::Direction::East => {
+//                             c.move_to(x, y - margin);
+//                             c.line_to(x_high - margin, y_mid);
+//                             c.line_to(x, y_high + margin);
+//                         }
+//                     }
+
+//                     c.stroke();
+//                 }
+//                 layout::Cell::Collision => {
+//                     c.set_fill_style_str(&Color::yellow().to_string());
+//                     c.fill_rect(x, y_high, cell_width, cell_height);
+//                 }
+//                 layout::Cell::Empty => {}
+//                 layout::Cell::Letter(letter, color) => {
+//                     c.set_fill_style_str(&color.to_string());
+//                     c.fill_rect(x, y_high, cell_width, cell_height);
+
+//                     c.set_fill_style_str(&Color::black().to_string());
+//                     c.set_line_width(4.0);
+
+//                     c.set_font("bold 2vmin sans-serif");
+//                     c.set_text_align("center");
+//                     c.set_text_baseline("middle");
+
+//                     c.fill_text_with_max_width(&letter.to_string(), x_mid, y_mid, cell_width)
+//                         .unwrap();
+//                 }
+//             }
+//         }
+//     }
+// }
