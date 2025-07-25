@@ -30,7 +30,7 @@ pub fn plugin(app: &mut App) {
         }),
         ..Default::default()
     }));
-    app.insert_resource(ClearColor(Color::srgb(0.0, 0.0, 0.0)));
+    app.insert_resource(ClearColor(Color::srgb(0.0, 0.0, 0.1)));
     app.add_systems(Startup, setup);
     app.add_systems(Update, window_resize_system);
 }
@@ -69,6 +69,7 @@ fn setup(mut commands: Commands, window: Single<&Window>) {
                 physical_size: viewport_size,
                 ..Default::default()
             }),
+            clear_color: ClearColorConfig::Custom(Color::srgb(0.2, 0.0, 0.0)),
             ..Default::default()
         },
     ));
