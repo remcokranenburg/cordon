@@ -17,7 +17,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use crate::{states::AppState, CORDON_GREEN, CORDON_GREEN_HIGHLIGHT, despawn_screen};
+use crate::{
+    CORDON_GREEN, CORDON_GREEN_HIGHLIGHT, despawn_screen, input::ExitGameEvent, states::AppState,
+};
 use bevy::{app::AppExit, ecs::spawn::SpawnIter, prelude::*};
 
 #[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States)]
@@ -274,7 +276,7 @@ fn menu_action(
         (&Interaction, &MenuButtonAction),
         (Changed<Interaction>, With<Button>),
     >,
-    mut app_exit_events: EventWriter<AppExit>,
+    mut exit_event_writer: EventWriter<ExitGameEvent>,
     mut menu_state: ResMut<NextState<MenuState>>,
     mut app_state: ResMut<NextState<AppState>>,
 ) {
@@ -283,7 +285,7 @@ fn menu_action(
             match menu_button_action {
                 MenuButtonAction::Quit => {
                     #[cfg(not(target_arch = "wasm32"))]
-                    app_exit_events.write(AppExit::Success);
+                    exit_event_writer.write(ExitGameEvent);
                 }
                 MenuButtonAction::Play => {
                     app_state.set(AppState::Game);

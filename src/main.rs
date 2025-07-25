@@ -20,12 +20,13 @@
 mod bot;
 mod common;
 mod game;
+mod input;
 mod layout;
 mod render;
 mod states;
 mod window;
 
-use bevy::{prelude::*, render::camera::Viewport, window::WindowResized};
+use bevy::prelude::*;
 
 const CORDON_GREEN: Color = Color::srgb(0.0, 0.8, 0.0);
 const CORDON_GREEN_HIGHLIGHT: Color = Color::srgb(0.0, 1.0, 0.0);
@@ -329,7 +330,12 @@ fn main() {
     console_error_panic_hook::set_once();
 
     App::new()
-        .add_plugins((window::plugin, render::plugin, states::plugin))
+        .add_plugins((
+            window::plugin,
+            render::plugin,
+            states::plugin,
+            input::plugin,
+        ))
         .insert_resource(crate::game::GameState::new(0, 6))
         .run();
 }
