@@ -18,7 +18,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 use crate::{common::Direction, game::GameState};
-use js_sys::Math;
 
 /// Drunk lamppost bot. This bot will randomly choose a direction to go to, but
 /// will avoid collisions. It will also try to keep the current direction if
@@ -45,11 +44,11 @@ pub fn drunk_lamppost_next(game_state: &GameState) -> Direction {
     }
 
     // if current direction is acceptable, keep it most of the time
-    if acceptable_directions.contains(&current_direction) && Math::random() > 0.1 {
+    if acceptable_directions.contains(&current_direction) && fastrand::f64() > 0.1 {
         return current_direction;
     }
 
     // otherwise, pick a random direction from acceptable directions
-    let random_direction = (Math::random() * (acceptable_directions.len()) as f64).floor() as usize;
+    let random_direction = (fastrand::f64() * (acceptable_directions.len()) as f64).floor() as usize;
     acceptable_directions[random_direction]
 }

@@ -17,9 +17,28 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+use crate::{
+    bot,
+    common::{Direction, Position},
+    layout,
+};
 use bevy::prelude::*;
-use crate::{bot, common::{Color, Direction, Position}};
 use std::{collections::VecDeque, fmt::Debug};
+
+pub fn plugin(app: &mut App) {
+    app.insert_resource(GameState::new(0, 6))
+        .add_systems(Startup, setup)
+        .add_systems(FixedUpdate, update);
+}
+
+fn setup(mut commands: Commands, game_state: Res<GameState>) {}
+
+fn update(mut game_state: ResMut<GameState>, time: Res<Time>) {
+    // Advance the game state by one tick every 100ms
+    if time.delta_secs() > 0.1 {
+        game_state.tick();
+    }
+}
 
 #[derive(Clone, Debug)]
 pub enum Controller {
@@ -31,16 +50,21 @@ pub enum Controller {
 
 #[derive(Clone, Debug)]
 pub struct Player {
-    pub color: Color,
+    pub id: usize,
     pub score: u32,
     pub segments: VecDeque<(Position, Direction)>,
     pub controller: Controller,
 }
 
 impl Player {
-    pub fn new(color: Color, position: Position, direction: Direction, controller: Controller) -> Self {
+    pub fn new(
+        id: usize,
+        position: Position,
+        direction: Direction,
+        controller: Controller,
+    ) -> Self {
         Player {
-            color: color,
+            id,
             score: 0,
             segments: VecDeque::from(vec![(position, direction)]),
             controller: controller,
@@ -99,9 +123,14 @@ impl GameState {
             phase: Phase::Step,
             active_player: 0,
             players: vec![
-                Player::new(Color::red(), Position { x: 4, y: 4 }, Direction::South, player0_controller),
                 Player::new(
-                    Color::blue(),
+                    0,
+                    Position { x: 4, y: 4 },
+                    Direction::South,
+                    player0_controller,
+                ),
+                Player::new(
+                    1,
                     Position {
                         x: width - 5,
                         y: height - 5,

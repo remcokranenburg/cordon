@@ -32,6 +32,10 @@ const CORDON_GREEN: Color = Color::srgb(0.0, 0.8, 0.0);
 const CORDON_GREEN_HIGHLIGHT: Color = Color::srgb(0.0, 1.0, 0.0);
 const CORDON_RED: Color = Color::srgb(0.8, 0.0, 0.0);
 const CORDON_BLUE: Color = Color::srgb(0.0, 0.0, 0.8);
+const CORDON_ORANGE: Color = Color::srgb(1.0, 0.5, 0.0);
+const CORDON_PURPLE: Color = Color::srgb(0.5, 0.0, 0.5);
+const CORDON_WHITE: Color = Color::srgb(0.8, 0.8, 0.8);
+const CORDON_BLACK: Color = Color::srgb(0.0, 0.0, 0.0);
 
 // fn toggle_fullscreen() {
 //     let document = use_document();
@@ -332,11 +336,11 @@ fn main() {
     App::new()
         .add_plugins((
             window::plugin,
-            render::plugin,
+            game::plugin,
+            layout::plugin,
             states::plugin,
             input::plugin,
         ))
-        .insert_resource(crate::game::GameState::new(0, 6))
         .run();
 }
 

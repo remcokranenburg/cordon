@@ -17,7 +17,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use bevy::{prelude::*, render::camera::Viewport, window::WindowResized};
+use bevy::{
+    prelude::*,
+    render::camera::Viewport,
+    window::{WindowResized, WindowResolution, WindowTheme},
+};
 
 pub fn plugin(app: &mut App) {
     app.add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -25,7 +29,8 @@ pub fn plugin(app: &mut App) {
             fit_canvas_to_parent: true,
             prevent_default_event_handling: false,
             title: "Cordon".into(),
-            window_theme: Some(bevy::window::WindowTheme::Dark),
+            window_theme: Some(WindowTheme::Dark),
+            resolution: WindowResolution::new(1152.0, 1008.0),
             ..Default::default()
         }),
         ..Default::default()
@@ -56,7 +61,7 @@ fn calc_viewport_position(window_size: UVec2, viewport_size: UVec2) -> UVec2 {
     }
 }
 
-fn setup(mut commands: Commands, window: Single<&Window>) {
+pub fn setup(mut commands: Commands, window: Single<&Window>) {
     let window_size = window.resolution.physical_size();
     let viewport_size = calc_viewport_size(window_size.x, window_size.y);
     let viewport_position = calc_viewport_position(window_size, viewport_size);
@@ -69,7 +74,6 @@ fn setup(mut commands: Commands, window: Single<&Window>) {
                 physical_size: viewport_size,
                 ..Default::default()
             }),
-            clear_color: ClearColorConfig::Custom(Color::srgb(0.2, 0.0, 0.0)),
             ..Default::default()
         },
     ));

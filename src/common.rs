@@ -19,7 +19,9 @@
 
 use std::fmt::{self, Debug, Display, Formatter};
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+use bevy::ecs::component::Component;
+
+#[derive(Copy, Clone, Debug, PartialEq, Component)]
 pub enum Direction {
     North,
     South,
@@ -34,101 +36,6 @@ impl Direction {
         Direction::South,
         Direction::West,
     ];
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct Color {
-    pub r: f64,
-    pub g: f64,
-    pub b: f64,
-}
-
-impl Color {
-    pub fn black() -> Self {
-        Self {
-            r: 0.0,
-            g: 0.0,
-            b: 0.0,
-        }
-    }
-
-    pub fn white() -> Self {
-        Self {
-            r: 1.0,
-            g: 1.0,
-            b: 1.0,
-        }
-    }
-
-    pub fn red() -> Self {
-        Self {
-            r: 1.0,
-            g: 0.0,
-            b: 0.0,
-        }
-    }
-
-    pub fn green() -> Self {
-        Self {
-            r: 0.0,
-            g: 1.0,
-            b: 0.0,
-        }
-    }
-
-    pub fn blue() -> Self {
-        Self {
-            r: 0.0,
-            g: 0.0,
-            b: 1.0,
-        }
-    }
-
-    pub fn yellow() -> Self {
-        Self {
-            r: 1.0,
-            g: 1.0,
-            b: 0.0,
-        }
-    }
-
-    pub fn darken(&self) -> Self {
-        Self {
-            r: self.r * 0.5,
-            g: self.g * 0.5,
-            b: self.b * 0.5,
-        }
-    }
-
-    pub fn lighten(&self) -> Self {
-        Self {
-            r: f64::min(self.r * 1.5, 255.0),
-            g: f64::min(self.g * 1.5, 255.0),
-            b: f64::min(self.b * 1.5, 255.0),
-        }
-    }
-}
-
-impl Display for Color {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(
-            f,
-            "rgb({}, {}, {})",
-            self.r * 255.0,
-            self.g * 255.0,
-            self.b * 255.0
-        )
-    }
-}
-
-impl Default for Color {
-    fn default() -> Self {
-        Color {
-            r: 0.0,
-            g: 0.5,
-            b: 0.0,
-        }
-    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
