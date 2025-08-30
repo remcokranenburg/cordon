@@ -56,10 +56,7 @@ fn update_board(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut grid_query: Query<(
-        &GridPosition,
-        &mut Transform,
-    )>,
+    mut grid_query: Query<(&GridPosition, &mut Transform)>,
     game_state: Res<GameState>,
     camera: Single<&Camera>,
 ) {
@@ -323,6 +320,7 @@ pub fn place_players(
             if i == player.segments.len() - 1 {
                 // Head
                 commands.spawn((
+                    // TODO: draw arrow (the head)
                     Mesh2d(meshes.add(Rectangle::new(1.0, 1.0))),
                     MeshMaterial2d(materials.add(color)),
                     *direction,
@@ -333,33 +331,59 @@ pub fn place_players(
                     },
                 ));
             } else {
-                // Body segment
-                match WallType::calculate_from_directions(i, &player.segments) {
-                    Ok(wall_type) => {
-                        commands.spawn((
-                            wall_type,
-                            Mesh2d(meshes.add(Rectangle::new(1.0, 1.0))),
-                            MeshMaterial2d(materials.add(color)),
-                            Transform::from_xyz(x, y, 0.0),
-                            GridPosition {
-                                x: position.x,
-                                y: position.y,
-                            },
-                        ));
-                    }
-                    Err(_) => {
-                        commands.spawn((
-                            Mesh2d(meshes.add(Rectangle::new(1.0, 1.0))),
-                            MeshMaterial2d(materials.add(CORDON_ORANGE)),
-                            Transform::from_xyz(x, y, 0.0),
-                            GridPosition {
-                                x: position.x,
-                                y: position.y,
-                            },
-                        ));
-                    }
-                }
+                // Wall segments
+                place_segment(
+                    commands,
+                    meshes,
+                    materials,
+                    game_state,
+                    &player.segments,
+                    i,
+                    player.id,
+                );
             }
+        }
+    }
+}
+
+/// Place a single wall segment based on its index in the segments VecDeque.
+pub fn place_segment(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<ColorMaterial>>,
+    game_state: &GameState,
+    segments: &VecDeque<(Position, Direction)>,
+    i: usize,
+    player_id: usize,
+) {
+    let (grid_position, direction) = segments[i];
+    let x = grid_position.x as f32 - game_state.grid_width as f32 / 2.0;
+    let y = grid_position.y as f32 - game_state.grid_height as f32 / 2.0;
+    let color = player_to_color(player_id);
+
+    match WallType::calculate_from_directions(i, segments) {
+        Ok(wall_type) => {
+            commands.spawn((
+                wall_type,
+                Mesh2d(meshes.add(Rectangle::new(1.0, 1.0))),
+                MeshMaterial2d(materials.add(color)),
+                Transform::from_xyz(x, y, 0.0),
+                GridPosition {
+                    x: grid_position.x,
+                    y: grid_position.y,
+                },
+            ));
+        }
+        Err(_) => {
+            commands.spawn((
+                Mesh2d(meshes.add(Rectangle::new(1.0, 1.0))),
+                MeshMaterial2d(materials.add(CORDON_ORANGE)),
+                Transform::from_xyz(x, y, 0.0),
+                GridPosition {
+                    x: grid_position.x,
+                    y: grid_position.y,
+                },
+            ));
         }
     }
 }

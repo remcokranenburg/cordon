@@ -20,23 +20,55 @@
 use crate::{
     bot,
     common::{Direction, Position},
-    layout,
+    layout::{self, place_segment},
 };
-use bevy::prelude::*;
-use std::{collections::VecDeque, fmt::Debug};
+use bevy::{prelude::*, time::common_conditions::on_timer};
+use std::{collections::VecDeque, fmt::Debug, time::Duration};
 
 pub fn plugin(app: &mut App) {
     app.insert_resource(GameState::new(0, 6))
         .add_systems(Startup, setup)
-        .add_systems(FixedUpdate, update);
+        .add_systems(Update, update);
 }
 
 fn setup(mut commands: Commands, game_state: Res<GameState>) {}
 
-fn update(mut game_state: ResMut<GameState>, time: Res<Time>) {
-    // Advance the game state by one tick every 100ms
-    if time.delta_secs() > 0.1 {
-        game_state.tick();
+fn update(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut game_state: ResMut<GameState>,
+    time: Res<Time>,
+) {
+    println!("Tick");
+    match game_state.tick() {
+        TickResult::SegmentAdded(player_id) => {
+            println!("Player {} moved", player_id);
+            // TODO: move head
+            let segments = &game_state.players[player_id].segments;
+            let i = segments.len() - 1;
+            place_segment(
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                &game_state,
+                segments,
+                i,
+                player_id,
+            );
+        }
+        TickResult::Collision(position) => {
+            println!(
+                "Player {} collided at {:?}",
+                game_state.active_player, position
+            );
+        }
+        TickResult::NextRound => {
+            println!("Next round");
+        }
+        TickResult::Noop => {
+            println!("Nothing happens, game is paused or over");
+        }
     }
 }
 
@@ -102,6 +134,13 @@ pub struct GameState {
     pub max_score: u32,
 }
 
+pub enum TickResult {
+    SegmentAdded(usize), // next tick will be another step
+    Collision(Position), // next tick will be scoring or game over
+    NextRound,           // next tick will be a step in a new round
+    Noop,                // next tick nothing happens, game is paused or over
+}
+
 impl GameState {
     pub fn new(num_players: usize, max_score: u32) -> Self {
         let width = 32;
@@ -151,7 +190,7 @@ impl GameState {
     // score a point. If a player scores the required number of points, the game
     // is over. This function returns an event in the game, which is used
     // by the layout logic to update the state of the world.
-    pub fn tick(&mut self) {
+    pub fn tick(&mut self) -> TickResult {
         match self.phase {
             Phase::Step => {
                 if let Controller::Bot = self.players[self.active_player].controller {
@@ -170,9 +209,19 @@ impl GameState {
                     } else {
                         self.phase = Phase::Score;
                     }
+
+                    TickResult::Collision(
+                        self.players[self.active_player]
+                            .segments
+                            .back()
+                            .expect("Player has no segments")
+                            .0,
+                    )
                 } else {
+                    let player_id = self.active_player;
                     self.set_next_player();
                     self.phase = Phase::Step;
+                    TickResult::SegmentAdded(player_id)
                 }
             }
             Phase::Score => {
@@ -180,10 +229,11 @@ impl GameState {
                 // an animation in between
                 self.reset_players();
                 self.phase = Phase::Step;
+                TickResult::NextRound
             }
             Phase::GameOver | Phase::Paused => {
                 // while the game is not running, ticks do nothing
-                return;
+                TickResult::Noop
             }
         }
     }
