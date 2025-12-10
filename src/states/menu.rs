@@ -172,7 +172,7 @@ fn main_menu_setup(mut commands: Commands) {
                 flex_direction: FlexDirection::Column,
                 ..default()
             },
-            BorderColor(CORDON_GREEN),
+            BorderColor::all(CORDON_GREEN),
             children![
                 // Display the game name
                 (

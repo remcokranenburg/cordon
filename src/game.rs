@@ -25,10 +25,14 @@ use crate::{
 use bevy::{prelude::*, time::common_conditions::on_timer};
 use std::{collections::VecDeque, fmt::Debug, time::Duration};
 
+#[derive(Message)]
+pub struct CollisionEvent;
+
 pub fn plugin(app: &mut App) {
     app.insert_resource(GameState::new(0, 6))
         .add_systems(Startup, setup)
-        .add_systems(Update, update);
+        .add_systems(FixedUpdate, update)
+        .add_message::<CollisionEvent>();
 }
 
 fn setup(mut commands: Commands, game_state: Res<GameState>) {}
@@ -38,6 +42,7 @@ fn update(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut game_state: ResMut<GameState>,
+    mut collision_events: MessageWriter<CollisionEvent>,
     time: Res<Time>,
 ) {
     println!("Tick");
@@ -62,6 +67,7 @@ fn update(
                 "Player {} collided at {:?}",
                 game_state.active_player, position
             );
+            collision_events.write(CollisionEvent);
         }
         TickResult::NextRound => {
             println!("Next round");
@@ -134,6 +140,7 @@ pub struct GameState {
     pub max_score: u32,
 }
 
+#[derive(Event)]
 pub enum TickResult {
     SegmentAdded(usize), // next tick will be another step
     Collision(Position), // next tick will be scoring or game over

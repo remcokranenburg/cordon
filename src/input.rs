@@ -3,13 +3,13 @@ use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
 // Event for exiting the game
-#[derive(Debug, Clone, Event)]
+#[derive(Debug, Clone, Message)]
 pub struct ExitGameEvent;
 
 // System to send ExitGameEvent on keyboard shortcuts
 pub fn exit_game_input_system(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut exit_event_writer: EventWriter<ExitGameEvent>,
+    mut exit_event_writer: MessageWriter<ExitGameEvent>,
 ) {
     // Ctrl+Q or Ctrl+W
     let ctrl = keyboard_input.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]);
@@ -23,8 +23,8 @@ pub fn exit_game_input_system(
 
 // System to handle ExitGameEvent and exit the app
 pub fn exit_game_event_system(
-    mut exit_event_reader: EventReader<ExitGameEvent>,
-    mut app_exit_events: EventWriter<AppExit>,
+    mut exit_event_reader: MessageReader<ExitGameEvent>,
+    mut app_exit_events: MessageWriter<AppExit>,
 ) {
     if exit_event_reader.read().next().is_some() {
         app_exit_events.write(AppExit::Success);
@@ -33,6 +33,6 @@ pub fn exit_game_event_system(
 
 // Setup function for input actions, matching the style in states/menu.rs
 pub fn plugin(app: &mut App) {
-    app.add_event::<ExitGameEvent>()
+    app.add_message::<ExitGameEvent>()
         .add_systems(Update, (exit_game_input_system, exit_game_event_system));
 }

@@ -18,8 +18,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 use bevy::{
+    camera::Viewport,
     prelude::*,
-    render::camera::Viewport,
     window::{WindowResized, WindowResolution, WindowTheme},
 };
 
@@ -30,7 +30,7 @@ pub fn plugin(app: &mut App) {
             prevent_default_event_handling: false,
             title: "Cordon".into(),
             window_theme: Some(WindowTheme::Dark),
-            resolution: WindowResolution::new(1152.0, 1008.0),
+            resolution: WindowResolution::new(1152, 1008),
             ..Default::default()
         }),
         ..Default::default()
@@ -80,7 +80,7 @@ pub fn setup(mut commands: Commands, window: Single<&Window>) {
 }
 
 fn window_resize_system(
-    mut resize_reader: EventReader<WindowResized>,
+    mut resize_reader: MessageReader<WindowResized>,
     mut camera: Single<&mut Camera>,
     windows: Query<&Window>,
 ) {

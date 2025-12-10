@@ -18,7 +18,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 use crate::common::{Direction, Position};
-use crate::game::{GameState, Player};
+use crate::game::{CollisionEvent, GameState, Player};
 use crate::window;
 use crate::{CORDON_BLUE, CORDON_GREEN, CORDON_ORANGE, CORDON_PURPLE, CORDON_RED, CORDON_WHITE};
 use bevy::prelude::*;
@@ -53,10 +53,11 @@ fn setup(
 }
 
 fn update_board(
+    mut collision_events: MessageReader<CollisionEvent>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut grid_query: Query<(&GridPosition, &mut Transform)>,
+    grid_query: Query<(Entity, &GridPosition, &mut Transform)>,
     game_state: Res<GameState>,
     camera: Single<&Camera>,
 ) {
@@ -69,18 +70,27 @@ fn update_board(
     let cell_width = width / 32.0;
     let cell_height = height / 28.0;
 
-    grid_query
-        .into_iter()
-        .for_each(|(grid_pos, mut transform)| {
-            let x = grid_pos.x as f32 - game_state.grid_width as f32 / 2.0 + 0.5;
-            let y = grid_pos.y as f32 - game_state.grid_height as f32 / 2.0 + 0.5;
-
-            *transform = {
-                let scaled = Transform::from_scale(Vec3::new(cell_width, cell_height, 1.0));
-                let translated = Transform::from_xyz(x, y, 0.0);
-                scaled.mul_transform(translated)
-            };
+    if !collision_events.is_empty() {
+        collision_events.clear();
+        // A collision occurred, reset the board
+        grid_query.into_iter().for_each(|(entity, _, _)| {
+            commands.entity(entity).despawn();
         });
+        place_obstacles(&mut commands, &mut meshes, &mut materials, &game_state);
+    } else {
+        grid_query
+            .into_iter()
+            .for_each(|(_, grid_pos, mut transform)| {
+                let x = grid_pos.x as f32 - game_state.grid_width as f32 / 2.0 + 0.5;
+                let y = grid_pos.y as f32 - game_state.grid_height as f32 / 2.0 + 0.5;
+
+                *transform = {
+                    let scaled = Transform::from_scale(Vec3::new(cell_width, cell_height, 1.0));
+                    let translated = Transform::from_xyz(x, y, 0.0);
+                    scaled.mul_transform(translated)
+                };
+            });
+    }
 }
 
 #[derive(Debug)]
@@ -199,87 +209,6 @@ impl Cell {
     }
 }
 
-#[derive(Clone, Resource)]
-pub struct Grid {
-    data: Vec<Vec<Cell>>,
-}
-
-impl Grid {
-    pub fn new(width: usize, height: usize, game_state: &GameState) -> Self {
-        let mut grid = Grid {
-            data: Grid::init_data(width, height),
-        };
-        grid.place_objects(game_state);
-        grid
-    }
-
-    pub fn reset(&mut self, game_state: &GameState) {
-        self.data = Grid::init_data(self.data[0].len(), self.data.len());
-        self.place_objects(game_state);
-    }
-
-    pub fn get_data(&self) -> &Vec<Vec<Cell>> {
-        &self.data
-    }
-
-    fn place_objects(&mut self, game_state: &GameState) {
-        self.place_obstacles(game_state);
-        self.place_players(game_state);
-        self.place_collision(game_state);
-    }
-
-    fn init_data(width: usize, height: usize) -> Vec<Vec<Cell>> {
-        let data = vec![vec![Cell::Empty; width]; height];
-        data
-    }
-
-    fn place_obstacles(&mut self, game_state: &GameState) {
-        for (i, obstacle) in game_state.obstacles.iter().enumerate() {
-            self.data[obstacle.y][obstacle.x] = Cell::Wall(
-                WallType::calculate_from_positions(i, &game_state.obstacles)
-                    .expect("should be contiguous"),
-                CORDON_GREEN,
-            );
-        }
-    }
-
-    fn place_players(&mut self, game_state: &GameState) {
-        for player in game_state.players.iter() {
-            for (i, (position, _)) in player.segments.iter().enumerate() {
-                if i == player.segments.len() - 1 {
-                    self.data[position.y][position.x] = Cell::head_from_player(player);
-                } else {
-                    match WallType::calculate_from_directions(i, &player.segments) {
-                        Ok(wall_type) => {
-                            self.data[position.y][position.x] =
-                                Cell::Wall(wall_type, player_to_color(player.id));
-                        }
-                        Err(_) => {
-                            self.data[position.y][position.x] = Cell::Collision;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fn place_collision(&mut self, game_state: &GameState) {
-        if game_state.has_collision() {
-            let (position, _) = game_state.players[game_state.active_player]
-                .segments
-                .back()
-                .unwrap();
-            self.data[position.y][position.x] = Cell::Collision;
-
-            for player in &game_state.players {
-                let (position, _) = player.segments.front().unwrap();
-                let digit = format!("{}", player.score).chars().nth(0).unwrap();
-                self.data[position.y][position.x] = Cell::Letter(digit, player_to_color(player.id));
-            }
-        }
-    }
-}
-
 pub fn place_obstacles(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
@@ -385,27 +314,5 @@ pub fn place_segment(
                 },
             ));
         }
-    }
-}
-
-impl Debug for Grid {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{{")?;
-        writeln!(f)?;
-        for row in self.data.iter() {
-            write!(f, "  ")?;
-            for cell in row.iter() {
-                match cell {
-                    Cell::Wall(..) => write!(f, "W")?,
-                    Cell::Player(..) => write!(f, "P")?,
-                    Cell::Empty => write!(f, " ")?,
-                    Cell::Collision => write!(f, "X")?,
-                    Cell::Letter(c, _) => write!(f, "{}", c)?,
-                }
-            }
-            writeln!(f)?;
-        }
-        write!(f, "}}")?;
-        Ok(())
     }
 }
